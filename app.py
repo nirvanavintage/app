@@ -1,17 +1,18 @@
+# -*- coding: utf-8 -*-
 import streamlit as st
-import pandas as pd
 import gspread
-from google.oauth2.service_account import Credentials
+from oauth2client.service_account import ServiceAccountCredentials
+import pandas as pd
 
-# --- Configuración de página ---
+# --- Configuración de la página ---
 st.set_page_config(
-    page_title="Nirvana Vintage",
-    page_icon="🌟",
-    layout="centered"
+    page_title="Nirvana Vintage: Gestión Diaria ✨",
+    page_icon="✨",
+    layout="centered",
 )
 
-# --- Título principal ---
-st.title("\ud83c\udf1f Nirvana Vintage: Gestión Diaria \ud83c\udf1f")
+# --- Título de la app ---
+st.title("✨ Nirvana Vintage: Gestión Diaria ✨")
 st.markdown("---")
 
 # --- Funciones auxiliares ---
