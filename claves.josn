@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "nirvana-458119",
+  "private_key_id": "aecef90a2a5f4fbc6f55342a9215b71855ef3072",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDrMTwuIU3UAhs7\nJuPYs880swvF4NaOHBPZfzumqW4Es3kpVjX+bLN78/TsfmH7/bdHGsixcNlGCMFd\nf3GBa2pSwJTq5WhaA8nn/T5Q37LhpEqS6wBHmiXyMgTSqi5ZQ+UFEGkxOpTwyGb+\nbDTTojbuptFGOv77o2zmz7p6rYddnc4bm5qTVaKBwaoRz3kIaFDOr5pKhuXYFUlH\n42X2+LFMnaHW6OVWpCgfHJ6ZX7+sC4e3bagZEnZ4Eiyi+PxhEqK8EIvd4gZR8ZUP\nConaqhRu68ZHnYgoVjszo2sSmDcl88S5BbS+WKkHSM9MD1/PD/jNQBgihdX3Yg+Y\nvGxo+v93AgMBAAECggEAGmq/e4pNGhzvHxVEBAaqUEfeG332IM8sNu1QxMGvdFgO\nVLjKEXJMigXXAwCXvpH7FexUZ4MpPHG7pRCtWJ/j443zDBv0EnbuJPXFG+4MbcYi\nLt9g0CoTIgxBOMJZuLgPZM1jlgkiSpX6j5BAMhc8e/uBHRYqUWxuonw+/Lbksfx9\nAd7a29VQRn4QZAjZHrTNzcXGFz7dVU3iNbtmGsuM5bJrfjxbM4CwvgzgVe0/hBzB\nNvnnIzAKcx5a7ZLwEBESnqt6WiKJd0WoUtsadPvGa1EqUF3X894rc8U6zRjC4wvw\nsbV9YA+fDmzFFMOKTe7d2vcwVKTOi41OfMpyuTXoCQKBgQD1pCpJVvmAGluBw+v/\nSiPzDxdSOG8jfkD4lsOsBvPKIfVKoY+Q33RdpHEaEWgEEozNM8kjr/rimm+daxfy\no9b3BAaBIWNaiFTBpZuKdS8Zi28T+Q/u5JtrGjjZF4l5eJd59aAdcwyQ4BPX98kr\nDkbf1py11q6Lsa+DJQSN+GNxmQKBgQD1HESHLhtdM4pXXabUnSf27WHKYrUp0wOi\nfsTKNlm2O4H1IDK3zLaPoMIk6CEXLyMjM+CVvOqE44BxBcsJahl6eM4mM1OCWH7t\nAGRT3HTT72C/oZP1JOPJXENcxCRyvT4FlKTsRqeVQCRvadB+rDb4tSyyY0+MbdLj\n1PaJZ3/DjwKBgEr/ES4NEOXspi2LTL1HvIwT+nHO6xeyD1IWba1S/hGjpolfpD5+\nCsAgWau0zsYXh8eK3Qk5TGbs8dDlBo29Of92yimYsQXOA9qPnlp6hqPM71/wtc2h\nHFZpzhtx1TYx/EVvGbCEFL0SvNw+ObwcgsUKeBQIdIgP+t8WaTqTMIFZAoGAZ91J\noKrGB7F+btUNi8zokXc32CYJtKZpRONJCpMLYvBGepPhSgdiWOx7OF5xHzznO9SQ\n14LNMfChjcMxrVSbZU1ptcBMI9DSQCXJXcvuaZxnN+0FIH04VSxWkym+dCyC6qR5\nWnH6M4GRrvB83CCnzq4fOZxhqhUjp02oBsOn3TsCgYEA8fYqWmOqGYRy84LQD7o6\nOeo3exS+TmHCsBYC6mHgBSEnTtymxxxMPrDEpq/+Hz5W4PSIfCTlM7ga5u+FOHVk\nM3ZaO6ulSNFekh2nihvVkUMvn9LDRoO9XJWXpD4DxBi702DQPIx7x+57+4G/V816\nfrIj0MsBXddXcQm2y+17BC4=\n-----END PRIVATE KEY-----\n",
+  "client_email": "cuenta-nirvana@nirvana-458119.iam.gserviceaccount.com",
+  "client_id": "104230637843084379405",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/cuenta-nirvana%40nirvana-458119.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
