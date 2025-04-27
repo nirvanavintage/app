@@ -1,26 +1,30 @@
 import streamlit as st
 import pandas as pd
 
-# Configuración de la página
+# Configurar página
 st.set_page_config(
     page_title="Nirvana Vintage",
     page_icon="✨",
     layout="centered"
 )
 
-# Título principal
+# Título
 st.markdown("<h1 style='text-align: center;'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Cargar los datos desde el enlace público
+# Cargar datos
 url = "https://docs.google.com/spreadsheets/d/1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8/export?format=csv"
 data = pd.read_csv(url)
 
-# Separar hojas manualmente
-clientes = data[data['Nº de Formulario'] == 1]  # Clientes están en hoja Clientes
-prendas = data[data['Nº de Formulario'] == 2]   # Prendas en hoja Stock
+# Convertir correctamente la columna "Vendida" a booleano
+if 'Vendida' in data.columns:
+    data['Vendida'] = data['Vendida'].astype(str).str.lower().map({'true': True, 'false': False})
 
-# Menú de acciones
+# Separar hojas
+clientes = data[data['Nº de Formulario'] == 1]
+prendas = data[data['Nº de Formulario'] == 2]
+
+# Opciones
 st.subheader("📝 ¿Qué quieres hacer hoy?")
 
 opciones = ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos"]
@@ -37,15 +41,15 @@ if seleccion == "Buscar Cliente":
             st.error("No se encontraron clientes con ese nombre.")
 
 elif seleccion == "Consultar Stock":
-    stock = prendas[prendas["Vendida"] != "Sí"]
+    stock = prendas[prendas["Vendida"] == False]
     st.success(f"Hay {len(stock)} prendas en stock disponibles.")
     st.dataframe(stock)
 
 elif seleccion == "Consultar Vendidos":
-    vendidos = prendas[prendas["Vendida"] == "Sí"]
+    vendidos = prendas[prendas["Vendida"] == True]
     st.success(f"Hay {len(vendidos)} prendas vendidas.")
     st.dataframe(vendidos)
 
-# Footer bonito
+# Footer
 st.markdown("---")
 st.markdown("<p style='text-align: center;'>❤️ Creado con amor para Nirvana Vintage - 2025 ❤️</p>", unsafe_allow_html=True)
