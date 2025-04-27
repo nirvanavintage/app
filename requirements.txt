@@ -3,3 +3,4 @@ gspread
 gspread_dataframe
 pandas
 oauth2client
+FPDF
