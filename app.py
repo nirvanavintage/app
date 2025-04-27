@@ -1,70 +1,58 @@
 import streamlit as st
 import pandas as pd
 
-# --- Configuración de página ---
+# Configuración básica de la página
 st.set_page_config(
     page_title="Nirvana Vintage",
-    page_icon="🌟",
+    page_icon="✨",
     layout="centered"
 )
 
-# --- Título principal ---
+# Título principal
 st.markdown("""
-    <h1 style='text-align: center;'>🌟 Nirvana Vintage: Gestión Diaria 🌟</h1>
-    <hr>
+<h1 style='text-align: center;'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
+<hr style='border:1px solid #444;'>
 """, unsafe_allow_html=True)
 
-# --- URL de tu Google Sheets compartido ---
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8/export?format=csv"
+# Cargar datos de Google Sheets
+sheet_url = "https://docs.google.com/spreadsheets/d/1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8/export?format=csv"
+df = pd.read_csv(sheet_url)
 
-# --- Carga de datos ---
-def cargar_datos():
-    try:
-        df = pd.read_csv(SHEET_URL)
-        return df
-    except Exception as e:
-        st.error(f"No se pudo cargar la hoja de Google Sheets: {e}")
-        return pd.DataFrame()
+# Sidebar con acciones
+st.subheader("\ud83d\udcc4 ¿Qué quieres hacer hoy?")
+accion = st.selectbox("Selecciona una acción", ("Buscar Cliente", "Consultar Stock", "Consultar Vendidos"))
 
-# --- Menú de acciones ---
-st.subheader("👉 ¿Qué quieres hacer hoy?")
-opcion = st.selectbox("Selecciona una acción", ("Buscar Cliente", "Generar Informe Diario", "Ver Stock"))
-
-# --- Acciones ---
-if opcion == "Buscar Cliente":
-    df_clientes = cargar_datos()
-    nombre = st.text_input("Introduce el nombre del cliente")
-    if st.button("🔍 Buscar"):
-        if not df_clientes.empty:
-            resultados = df_clientes[df_clientes['Nombre y Apellidos'].str.contains(nombre, case=False, na=False)]
-            if not resultados.empty:
-                st.success(f"Se encontraron {len(resultados)} cliente(s):")
-                st.dataframe(resultados)
-            else:
-                st.warning("No se encontraron clientes con ese nombre.")
-
-elif opcion == "Generar Informe Diario":
-    df_mensajes = cargar_datos()
-    if not df_mensajes.empty:
-        st.subheader("📢 Resumen de Mensajes a Enviar Hoy")
-        # Filtramos por hoy (simulado para ahora mismo)
-        hoy = pd.to_datetime("today").date()
-        df_mensajes['Fecha de Alta'] = pd.to_datetime(df_mensajes['Fecha de Alta'], errors='coerce')
-        mensajes_hoy = df_mensajes[df_mensajes['Fecha de Alta'].dt.date == hoy]
-        if not mensajes_hoy.empty:
-            for idx, row in mensajes_hoy.iterrows():
-                st.info(f"Enviar mensaje a {row['Nombre y Apellidos']} al teléfono {row['Teléfono']}")
+# Buscar cliente
+if accion == "Buscar Cliente":
+    nombre_cliente = st.text_input("Introduce el nombre del cliente")
+    if st.button("\ud83d\udd0d Buscar"):
+        resultados = df[df['Nombre y Apellidos'].str.contains(nombre_cliente, case=False, na=False)]
+        if not resultados.empty:
+            st.success(f"Se encontraron {len(resultados)} cliente(s):")
+            st.dataframe(resultados)
         else:
-            st.success("No hay mensajes programados para hoy. 😊")
+            st.warning("No se encontraron clientes con ese nombre.")
 
-elif opcion == "Ver Stock":
-    df_stock = cargar_datos()
-    if not df_stock.empty:
-        st.subheader("📦 Estado del Stock")
-        st.dataframe(df_stock)
+# Consultar Stock (prendas no vendidas)
+elif accion == "Consultar Stock":
+    stock = df[df['Vendida'] == 'No'] if 'Vendida' in df.columns else pd.DataFrame()
+    if not stock.empty:
+        st.success(f"Hay {len(stock)} prendas en stock.")
+        st.dataframe(stock)
+    else:
+        st.warning("No hay prendas en stock registradas.")
 
-# --- Footer bonito ---
+# Consultar Vendidos (prendas vendidas)
+elif accion == "Consultar Vendidos":
+    vendidos = df[df['Vendida'] == 'Sí'] if 'Vendida' in df.columns else pd.DataFrame()
+    if not vendidos.empty:
+        st.success(f"Hay {len(vendidos)} prendas vendidas.")
+        st.dataframe(vendidos)
+    else:
+        st.warning("No hay prendas vendidas registradas.")
+
+# Footer bonito
 st.markdown("""
-    <hr>
-    <center>💛 Creado con amor para Nirvana Vintage · 2025</center>
+<br>
+<p style='text-align: center;'>💖 Creado con amor para Nirvana Vintage - 2025</p>
 """, unsafe_allow_html=True)
