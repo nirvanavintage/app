@@ -1,104 +1,105 @@
 import streamlit as st
-import pandas as pd
 import gspread
-from google.oauth2.service_account import Credentials
+from oauth2client.service_account import ServiceAccountCredentials
+import pandas as pd
 from datetime import datetime
 
-# --- Configuracion de la pagina ---
+# --- Configuración básica ---
 st.set_page_config(
     page_title="Nirvana Vintage",
-    page_icon="🌟",
-    layout="wide"
+    page_icon="✨",
+    layout="centered"
 )
 
-# --- Conexion a Google Sheets ---
-SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-CREDS = Credentials.from_service_account_file("credenciales.json", scopes=SCOPE)
-client = gspread.authorize(CREDS)
+# --- Autenticación Google Sheets ---
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+credentials = ServiceAccountCredentials.from_json_keyfile_name('claves.json', scope)
+client = gspread.authorize(credentials)
 
-# --- Carga de datos ---
-HOJA_PRENDAS = 'Prendas'
-HOJA_CLIENTES = 'Clientes'
+# --- Cargar las hojas ---
+spreadsheet = client.open("Stock")
+hoja_prendas = spreadsheet.worksheet("Prendas")
+hoja_clientes = spreadsheet.worksheet("Clientes")
 
-spreadsheet = client.open("Stock")  # Nombre exacto del Google Sheets
-hoja_prendas = spreadsheet.worksheet(HOJA_PRENDAS)
-hoja_clientes = spreadsheet.worksheet(HOJA_CLIENTES)
-
-# --- Funciones ---
+# --- Funciones útiles ---
 def generar_informe_diario():
-    st.subheader("📊 Informe Diario de WhatsApps")
-
-    # Obtener datos
-    prendas = pd.DataFrame(hoja_prendas.get_all_records())
-    clientes = pd.DataFrame(hoja_clientes.get_all_records())
+    df_prendas = pd.DataFrame(hoja_prendas.get_all_records())
+    df_clientes = pd.DataFrame(hoja_clientes.get_all_records())
 
     hoy = datetime.now().strftime("%d/%m/%Y")
-
-    # Filtrar prendas que tienen Fecha Aviso = hoy y no estan vendidas
-    prendas_hoy = prendas[(prendas['Fecha Aviso'] == hoy) & (prendas['Vendida'] != True)]
+    df_prendas['Fecha Aviso'] = pd.to_datetime(df_prendas['Fecha Aviso'], dayfirst=True, errors='coerce')
+    prendas_hoy = df_prendas[(df_prendas['Fecha Aviso'].dt.strftime("%d/%m/%Y") == hoy) & (df_prendas['Vendida'] != True)]
 
     if prendas_hoy.empty:
-        st.info("🚫 No hay mensajes para enviar hoy.")
+        st.info("✅ No hay prendas para avisar hoy.")
         return
 
-    # Juntar datos con cliente
-    resultado = pd.merge(prendas_hoy, clientes, left_on='Nº Cliente (Formato C-xxx) ', right_on='ID Cliente', how='left')
+    st.subheader("📋 Informe de WhatsApps a Enviar Hoy")
 
-    resultado['Mensaje'] = resultado.apply(lambda x: f"Hola {x['Nombre y Apellidos']}, tu prenda '{x['Tipo de prenda']}' vence pronto. \
-    Por favor confirma si deseas recuperarla o donarla.", axis=1)
+    for _, fila in prendas_hoy.iterrows():
+        cliente = df_clientes[df_clientes['ID Cliente'] == fila['Nº Cliente (Formato C-xxx) ']]
+        if not cliente.empty:
+            nombre = cliente.iloc[0]['Nombre y Apellidos']
+            telefono = cliente.iloc[0]['Teléfono']
+            st.markdown(f"**Cliente:** {nombre}  \n"
+                        f"**Teléfono:** {telefono}  \n"
+                        f"**Prenda:** {fila['Tipo de prenda']}  \n"
+                        f"**Marca:** {fila.get('Marca', 'N/A')}  \n"
+                        f"**Opciones:** Renovar o Donar")
+            st.markdown("---")
 
-    mostrar = resultado[['Nombre y Apellidos', 'Teléfono', 'Tipo de prenda', 'Mensaje']]
+def buscar_cliente():
+    nombre_buscado = st.text_input("🔎 Escribe el nombre o parte del nombre del cliente:")
+    if nombre_buscado:
+        df_clientes = pd.DataFrame(hoja_clientes.get_all_records())
+        resultados = df_clientes[df_clientes['Nombre y Apellidos'].str.contains(nombre_buscado, case=False, na=False)]
 
-    st.success(f"🎉 Hoy hay {len(mostrar)} mensajes a enviar.")
-    st.dataframe(mostrar, use_container_width=True)
+        if not resultados.empty:
+            st.success("Resultados encontrados:")
+            st.dataframe(resultados)
+        else:
+            st.warning("❌ No se encontró ningún cliente.")
 
-    # Descargar como CSV
-    csv = mostrar.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="🔗 Descargar Informe CSV",
-        data=csv,
-        file_name=f"whatsapp_informe_{hoy.replace('/', '-')}.csv",
-        mime='text/csv'
-    )
+def resumen_mensajes():
+    df_prendas = pd.DataFrame(hoja_prendas.get_all_records())
+    hoy = datetime.now().strftime("%d/%m/%Y")
+    df_prendas['Fecha Aviso'] = pd.to_datetime(df_prendas['Fecha Aviso'], dayfirst=True, errors='coerce')
+    total = df_prendas[(df_prendas['Fecha Aviso'].dt.strftime("%d/%m/%Y") == hoy) & (df_prendas['Vendida'] != True)].shape[0]
 
-# --- Interfaz Web ---
-st.title("💫 Nirvana Vintage: Gestión Diaria")
+    st.subheader("📊 Resumen de Mensajes")
+    st.success(f"Hoy se deben enviar **{total} mensajes** de aviso de vencimiento.")
+
+# --- Página principal ---
+st.title("✨ Nirvana Vintage: Gestión Diaria ✨")
 st.markdown("---")
 
-menu = st.sidebar.radio("🔍 Navegación", ["Inicio", "Generar Informe Diario", "Próximamente"])
+# --- Menú principal ---
+st.subheader("📌 ¿Qué quieres hacer hoy?")
 
-if menu == "Inicio":
-    st.header("🚼 Acciones rápidas")
-    col1, col2, col3 = st.columns(3)
+opcion = st.selectbox("", ("Selecciona una opción", 
+                           "🔎 Buscar Cliente", 
+                           "📋 Generar Informe Diario", 
+                           "📊 Resumen Mensajes a Enviar"))
 
-    with col1:
-        if st.button("🔍 Buscar Cliente"):
-            st.warning("Función disponible próximamente.")
+if opcion == "🔎 Buscar Cliente":
+    buscar_cliente()
 
-    with col2:
-        if st.button("📅 Generar Informe Diario"):
-            generar_informe_diario()
-
-    with col3:
-        if st.button("📰 Resumen Mensajes a Enviar"):
-            st.warning("Función disponible próximamente.")
-
-    st.markdown("---")
-    st.subheader("📄 Formularios Rápidos")
-    st.markdown("""
-    - [➕ Añadir Nueva Prenda](https://forms.gle/Nr4xREV78Y8tEMDj6)
-    - [➕ Alta Nuevo Cliente](https://forms.gle/2J1FzzDJLwZ1dtSF9)
-    - [☑️ Marcar como Vendida](#)
-    """)
-
-elif menu == "Generar Informe Diario":
+elif opcion == "📋 Generar Informe Diario":
     generar_informe_diario()
 
-else:
-    st.info("🌟 Muy pronto más funcionalidades...")
+elif opcion == "📊 Resumen Mensajes a Enviar":
+    resumen_mensajes()
 
-# --- Footer ---
+# --- Enlaces rápidos ---
+st.markdown("---")
+st.subheader("📝 Formularios Rápidos")
+
 st.markdown("""
----
-Creado con ❤️ para Nirvana Vintage - 2025
+- [➕ Añadir Nueva Prenda](https://forms.gle/2J1FzzDJLwZ1dtSF9)
+- [➕ Alta Nuevo Cliente](https://forms.gle/Nr4xREV78Y8tEMDj6)
+- [✅ Marcar como Vendida](https://docs.google.com/spreadsheets/d/1rE7zErEfA14TRoxaA-PPD5OGYYXh3Zr_0j9bRQeLap8/edit#gid=0)
 """)
+
+# --- Footer bonito ---
+st.markdown("---")
+st.caption("Creado con ❤️ para Nirvana Vintage - 2025")
