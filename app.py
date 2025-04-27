@@ -2,122 +2,98 @@ import streamlit as st
 import pandas as pd
 from fpdf import FPDF
 
-# Configurar página
-st.set_page_config(page_title="Nirvana Vintage: Gestión Diaria", page_icon="🌟", layout="centered")
+st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="centered")
 
-# Cargar los datos
-sheet_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLu0AApD3jURHD8QQubDUSEadQt_oLgSb8vI5MJ5oOd_jTx2Kw31frmeKU6FcdVA/pub?output=csv"
-data = pd.read_csv(sheet_url)
+st.title(":sparkles: Nirvana Vintage: Gestión Diaria :sparkles:")
+st.markdown("---")
 
-clientes = data[data['ID Cliente'].notna()][['ID Cliente', 'Nombre y Apellidos', 'Teléfono', 'Fecha de Alta', 'DNI']]
-prendas = data[data['ID Prenda'].notna()][['ID Prenda', 'Nº Cliente (Formato C-xxx)', 'Fecha de recepción', 'Tipo de prenda', 'Vendida', 'Marca', 'Precio', 'Talla']]
+# Enlaces
+st.sidebar.header("🔗 Formularios y App")
+st.sidebar.markdown("[Formulario Nueva Prenda](https://forms.gle/QAXSH5ZP6oCpWEcL6)")
+st.sidebar.markdown("[Formulario Nuevo Cliente](https://forms.gle/2BpmDNegKNTNc2dK6)")
+st.sidebar.markdown("[App Marcar como Vendido](https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido)")
 
-# Título principal
-st.markdown("""
-<h1 style='text-align: center;'>🌟 Nirvana Vintage: Gestión Diaria 🌟</h1>
-""", unsafe_allow_html=True)
+# Cargar datos
+df_clientes = pd.read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vT3M3U_N5T5_-dLw0V_3pA8mrDulz-cznJNHwFM1GcfjxzqM8j5mfJpRzF4YBOZBsgjsvDRKsDnpD7I/pub?gid=1775701755&single=true&output=csv")
+df_prendas = pd.read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vT3M3U_N5T5_-dLw0V_3pA8mrDulz-cznJNHwFM1GcfjxzqM8j5mfJpRzF4YBOZBsgjsvDRKsDnpD7I/pub?gid=517323538&single=true&output=csv")
 
-# Menú principal
-st.markdown("""
-<h2>📄 ¿Qué quieres hacer hoy?</h2>
-""", unsafe_allow_html=True)
+# Convertir columna 'Vendida' (casillas) a booleano si existe
+df_prendas["Vendida"] = df_prendas["Vendida"].fillna(False).astype(bool)
 
-accion = st.selectbox("Selecciona una acción", ("Buscar Cliente", "Consultar Stock", "Consultar Vendidos"))
+# Opciones de acción
+accion = st.selectbox("Selecciona una acción", ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos"])
 
-# Buscar cliente
-def buscar_cliente():
-    nombre = st.text_input("Introduce el nombre del cliente")
+if accion == "Buscar Cliente":
+    nombre_cliente = st.text_input("Introduce el nombre del cliente")
     if st.button("🔍 Buscar"):
-        resultados = clientes[clientes['Nombre y Apellidos'].str.contains(nombre, case=False, na=False)]
+        resultados = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre_cliente, case=False, na=False)]
         if not resultados.empty:
             st.success(f"Se encontraron {len(resultados)} cliente(s):")
             st.dataframe(resultados)
+            id_cliente = resultados.iloc[0]["ID Cliente"]
 
-            id_cliente = resultados.iloc[0]['ID Cliente']
-            prendas_cliente = prendas[prendas['Nº Cliente (Formato C-xxx)'] == id_cliente]
+            prendas_cliente = df_prendas[df_prendas["Nº Cliente (Formato C-xxx)"] == id_cliente]
+            stock_cliente = prendas_cliente[prendas_cliente["Vendida"] == False]
+            vendidos_cliente = prendas_cliente[prendas_cliente["Vendida"] == True]
 
-            stock = prendas_cliente[prendas_cliente['Vendida'] != True]
-            vendidos = prendas_cliente[prendas_cliente['Vendida'] == True]
+            st.subheader(":hanger: Prendas en Stock")
+            if not stock_cliente.empty:
+                st.dataframe(stock_cliente)
+            else:
+                st.info("No hay prendas en stock.")
 
-            st.subheader("Prendas en Stock")
-            st.dataframe(stock)
+            st.subheader(":shopping_bags: Prendas Vendidas")
+            if not vendidos_cliente.empty:
+                st.dataframe(vendidos_cliente)
+            else:
+                st.info("No hay prendas vendidas.")
 
-            st.subheader("Prendas Vendidas")
-            st.dataframe(vendidos)
+            # Generar PDF
+            if st.button("🔖 Generar Informe en PDF"):
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=12)
 
-            if st.button("💾 Generar Informe en PDF"):
-                generar_pdf(resultados.iloc[0], stock, vendidos)
+                pdf.cell(0, 10, f"Cliente: {resultados.iloc[0]['Nombre y Apellidos']}", ln=True)
+                pdf.cell(0, 10, f"ID Cliente: {id_cliente}", ln=True)
+                pdf.cell(0, 10, "", ln=True)
 
+                pdf.cell(0, 10, "Prendas en Stock:", ln=True)
+                for index, row in stock_cliente.iterrows():
+                    pdf.cell(0, 10, f"{row['ID Prenda']} - {row['Tipo de prenda']}", ln=True)
+
+                pdf.cell(0, 10, "", ln=True)
+                pdf.cell(0, 10, "Prendas Vendidas:", ln=True)
+                for index, row in vendidos_cliente.iterrows():
+                    pdf.cell(0, 10, f"{row['ID Prenda']} - {row['Tipo de prenda']}", ln=True)
+
+                pdf_output = f"informe_{id_cliente}.pdf"
+                pdf.output(pdf_output)
+
+                with open(pdf_output, "rb") as file:
+                    st.download_button(label="🔖 Descargar Informe PDF", data=file, file_name=pdf_output, mime="application/pdf")
         else:
-            st.warning("No se encontraron clientes con ese nombre.")
+            st.error("No se encontró ningún cliente.")
 
-# Consultar stock
-def consultar_stock():
-    st.subheader("Stock disponible")
-    stock = prendas[prendas['Vendida'] != True]
-    st.success(f"Hay {len(stock)} prendas en stock:")
+elif accion == "Consultar Stock":
+    tipo_filtro = st.selectbox("Filtrar por tipo de prenda", ["Todos"] + sorted(df_prendas["Tipo de prenda"].dropna().unique().tolist()))
+    stock = df_prendas[df_prendas["Vendida"] == False]
+    if tipo_filtro != "Todos":
+        stock = stock[stock["Tipo de prenda"] == tipo_filtro]
+
+    st.success(f"Hay {len(stock)} prenda(s) en stock.")
     st.dataframe(stock)
 
-# Consultar vendidos
-def consultar_vendidos():
-    st.subheader("Prendas Vendidas")
-    vendidos = prendas[prendas['Vendida'] == True]
-    st.success(f"Hay {len(vendidos)} prendas vendidas:")
+elif accion == "Consultar Vendidos":
+    tipo_filtro = st.selectbox("Filtrar por tipo de prenda", ["Todos"] + sorted(df_prendas["Tipo de prenda"].dropna().unique().tolist()))
+    vendidos = df_prendas[df_prendas["Vendida"] == True]
+    if tipo_filtro != "Todos":
+        vendidos = vendidos[vendidos["Tipo de prenda"] == tipo_filtro]
+
+    st.success(f"Hay {len(vendidos)} prenda(s) vendidas.")
     st.dataframe(vendidos)
 
-# Funciones PDF
-def generar_pdf(cliente, stock, vendidos):
-    pdf = FPDF()
-    pdf.add_page()
-
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "Informe Cliente Nirvana Vintage", ln=True, align='C')
-    pdf.ln(10)
-
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(0, 10, f"Nombre: {cliente['Nombre y Apellidos']}", ln=True)
-    pdf.cell(0, 10, f"Teléfono: {cliente['Teléfono']}", ln=True)
-    pdf.cell(0, 10, f"Fecha de Alta: {cliente['Fecha de Alta']}", ln=True)
-    pdf.cell(0, 10, f"DNI: {cliente['DNI']}", ln=True)
-    pdf.ln(10)
-
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "Prendas en Stock", ln=True)
-    pdf.set_font("Arial", '', 10)
-    for index, row in stock.iterrows():
-        pdf.cell(0, 8, f"{row['ID Prenda']} - {row['Tipo de prenda']} ({row['Marca']})", ln=True)
-    
-    pdf.ln(5)
-
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "Prendas Vendidas", ln=True)
-    pdf.set_font("Arial", '', 10)
-    for index, row in vendidos.iterrows():
-        pdf.cell(0, 8, f"{row['ID Prenda']} - {row['Tipo de prenda']} ({row['Marca']})", ln=True)
-
-    pdf_output = f"{cliente['Nombre y Apellidos'].replace(' ', '_')}_informe.pdf"
-    pdf.output(pdf_output)
-
-    with open(pdf_output, "rb") as f:
-        st.download_button(label="🔗 Descargar Informe PDF", data=f, file_name=pdf_output, mime='application/octet-stream')
-
-# Ejecutar acción
-if accion == "Buscar Cliente":
-    buscar_cliente()
-elif accion == "Consultar Stock":
-    consultar_stock()
-elif accion == "Consultar Vendidos":
-    consultar_vendidos()
-
-# Formularios rápidos
 st.markdown("""
 ---
-
-<h2>📅 Formularios Rápidos</h2>
-
-- [➕ Añadir Nueva Prenda](https://forms.gle/QAXSH5ZP6oCpWEcL6)
-- [➕ Alta Nuevo Cliente](https://forms.gle/2BpmDNegKNTNc2dK6)
-- [✅ Marcar como Vendida (App)](https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido)
-
-<p style='text-align: center;'>❤️ Creado con amor para Nirvana Vintage - 2025 ❤️</p>
+<div style='text-align: center;'>💔 Creado con amor para Nirvana Vintage - 2025 💔</div>
 """, unsafe_allow_html=True)
