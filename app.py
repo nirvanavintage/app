@@ -12,24 +12,22 @@ st.set_page_config(
 st.markdown("<h1 style='text-align: center;'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Cargar datos
-url = "https://docs.google.com/spreadsheets/d/1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8/export?format=csv"
-data = pd.read_csv(url)
+# Cargar datos correctos
+sheet_id = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
+prendas_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=Prendas"
+clientes_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=Clientes"
 
-# Comprobar si existe columna Vendida
-if 'Vendida' in data.columns:
-    data['Vendida'] = data['Vendida'].astype(str).str.lower().map({'true': True, 'false': False})
+# Leer datos
+try:
+    prendas = pd.read_csv(prendas_url)
+    clientes = pd.read_csv(clientes_url)
+except Exception as e:
+    st.error("No se pudieron cargar los datos.")
+    st.stop()
 
-# Dividir datos si existen las columnas
-if 'Nombre y Apellidos' in data.columns:
-    clientes = data.dropna(subset=['Nombre y Apellidos'])
-else:
-    clientes = pd.DataFrame()
-
-if 'Vendida' in data.columns:
-    prendas = data.dropna(subset=['Vendida'])
-else:
-    prendas = pd.DataFrame()
+# Normalizar la columna Vendida
+if "Vendida" in prendas.columns:
+    prendas["Vendida"] = prendas["Vendida"].astype(str).str.lower().map({"true": True, "false": False})
 
 # Opciones
 st.subheader("📝 ¿Qué quieres hacer hoy?")
@@ -48,20 +46,14 @@ if seleccion == "Buscar Cliente":
             st.error("No se encontraron clientes con ese nombre.")
 
 elif seleccion == "Consultar Stock":
-    if not prendas.empty:
-        stock = prendas[prendas["Vendida"] == False]
-        st.success(f"Hay {len(stock)} prendas en stock disponibles.")
-        st.dataframe(stock)
-    else:
-        st.error("No se pudo encontrar información de stock.")
+    stock = prendas[prendas["Vendida"] == False]
+    st.success(f"Hay {len(stock)} prendas disponibles en stock:")
+    st.dataframe(stock)
 
 elif seleccion == "Consultar Vendidos":
-    if not prendas.empty:
-        vendidos = prendas[prendas["Vendida"] == True]
-        st.success(f"Hay {len(vendidos)} prendas vendidas.")
-        st.dataframe(vendidos)
-    else:
-        st.error("No se pudo encontrar información de prendas vendidas.")
+    vendidos = prendas[prendas["Vendida"] == True]
+    st.success(f"Hay {len(vendidos)} prendas vendidas:")
+    st.dataframe(vendidos)
 
 # Footer bonito
 st.markdown("---")
