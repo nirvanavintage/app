@@ -73,8 +73,8 @@ if seleccion == "Buscar Cliente":
             st.dataframe(resultados, use_container_width=True)
             ids_cliente = resultados["ID Cliente"].unique()
 
-            stock_cliente = prendas[(prendas["Nº Cliente (Formato C-xxx)"].isin(ids_cliente)) & (prendas["Vendida"] == False)]
-            vendidas_cliente = prendas[(prendas["Nº Cliente (Formato C-xxx)"].isin(ids_cliente)) & (prendas["Vendida"] == True)]
+            stock_cliente = prendas[(prendas["Nº Cliente (Formato C-xxx) "].isin(ids_cliente)) & (prendas["Vendida"] == False)]
+            vendidas_cliente = prendas[(prendas["Nº Cliente (Formato C-xxx) "].isin(ids_cliente)) & (prendas["Vendida"] == True)]
 
             st.subheader("🍋 Prendas en Stock:")
             if not stock_cliente.empty:
