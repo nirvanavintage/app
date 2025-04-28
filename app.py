@@ -131,7 +131,7 @@ elif menu=="Informe Cliente por Entregas":
             st.error("Cliente no encontrado")
         else:
             idc=cli.iloc[0]["ID Cliente"]
-            df_cli=prendas[prendas["Nº Cliente (Formato C-xxx)"]==idc]
+            df_cli=prendas[prendas["Nº Cliente (Formato C-xxx) "]==idc]
             fechas=df_cli["Fecha de recepción"].unique().tolist()
             seleccion=st.multiselect("Selecciona entregas",fechas)
             if seleccion:
