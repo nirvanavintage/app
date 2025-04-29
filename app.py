@@ -550,14 +550,14 @@ elif seccion == "Reporte Diario":
         buffer = BytesIO()
         pdf.output(buffer)
         buffer.seek(0)
-        st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name=f"reporte_diario_{hoy.date()}.pdf")
+        st.download_button("⬇ Descargar PDF", buffer.getvalue(), file_name=f"reporte_diario_{hoy.date()}.pdf")
 elif seccion == "Avisos":
-    st.header("📩 Avisos a Clientes")
+    st.header(" Avisos a Clientes")
 
     fecha_objetivo = st.date_input("Selecciona la fecha para los avisos", pd.Timestamp.today())
 
     # --- AVISOS POR FECHA DE AVISO ---
-    st.subheader("📆 Prendas con Aviso en la Fecha Seleccionada")
+    st.subheader(" Prendas con Aviso en la Fecha Seleccionada")
 
     df_aviso = df_prendas.copy()
     df_aviso["Fecha Aviso"] = pd.to_datetime(df_aviso["Fecha Aviso"], errors="coerce")
@@ -574,13 +574,13 @@ elif seccion == "Avisos":
 
             mensaje = f"Hola {nombre}, tu prenda ({prenda} talla {talla}) está a punto de caducar. ¿Deseas donarla o pasar a recogerla?"
             st.markdown(f"""
-            🔔 **Cliente:** {nombre}  
-            📞 **Teléfono:** {telefono}  
-            👕 **Prenda:** {prenda} | Talla {talla}  
-            💬 **Mensaje sugerido:**
+             **Cliente:** {nombre}  
+             **Teléfono:** {telefono}  
+             **Prenda:** {prenda} | Talla {talla}  
+             **Mensaje sugerido:**
             """)
             st.code(mensaje)
-            st.button(f"📋 Copiar mensaje para {nombre}", key=f"copy_{id_cliente}")
+            st.button(f" Copiar mensaje para {nombre}", key=f"copy_{id_cliente}")
             st.divider()
     else:
         st.info("No hay prendas con aviso para esa fecha.")
@@ -600,12 +600,12 @@ elif seccion == "Avisos":
 
             mensaje = f"Hola {nombre}, gracias por traer tus prendas a Nirvana. Aquí tienes tu ficha con lo que has entregado."
             st.markdown(f"""
-            👤 **Nombre:** {nombre}  
-            📞 **Teléfono:** {telefono}  
-            💬 **Mensaje sugerido:**
+             **Nombre:** {nombre}  
+             **Teléfono:** {telefono}  
+             **Mensaje sugerido:**
             """)
             st.code(mensaje)
-            st.button(f"📋 Copiar mensaje para {idc}", key=f"copy_new_{idc}")
+            st.button(f" Copiar mensaje para {idc}", key=f"copy_new_{idc}")
 
             if not prendas_cliente.empty:
                 st.markdown("**Resumen de prendas entregadas:**")
