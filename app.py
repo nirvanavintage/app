@@ -51,8 +51,12 @@ h1 {
     font-weight: bold;
     margin-bottom: 20px;
 }
+.link-buttons {
+    text-align: center;
+    margin-bottom: 40px;
+}
 .link-buttons a {
-    margin: 0 15px;
+    margin: 0 10px;
     padding: 10px 20px;
     background-color: #262730;
     color: white;
@@ -60,6 +64,7 @@ h1 {
     text-decoration: none;
     font-weight: bold;
     border: 1px solid #444;
+    display: inline-block;
 }
 .link-buttons a:hover {
     background-color: #444;
@@ -67,11 +72,11 @@ h1 {
 </style>
 
 <h1>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
-<div class='link-buttons' style='text-align: center; margin-bottom: 40px;'>
+<div class='link-buttons'>
     <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>+ Nueva Prenda</a>
     <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>+ Nuevo Cliente</a>
     <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>✔️ Marcar como Vendido</a>
-    <a href='?seccion=avisos' target='_self'>📩 Avisos</a>
+    <a href='?seccion=Avisos' target='_self'>📩 Avisos</a>
 </div>
 """, unsafe_allow_html=True)
 
@@ -99,9 +104,7 @@ except:
 if "seccion" not in st.session_state:
     st.session_state.seccion = ""
 
-# Captura de parámetro de URL (permite abrir "Avisos" en nueva pestaña)
 query_params = st.query_params
-
 seccion_query = query_params.get("seccion", [""])[0].strip().lower()
 if seccion_query == "avisos":
     st.session_state.seccion = "Avisos"
