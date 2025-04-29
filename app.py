@@ -25,7 +25,7 @@ def clean_text(text):
     except Exception:
         return str(text)
 
-def def df_to_pdf(df, titulo, nombre_archivo, modo="compacto"):
+def df_to_pdf(df, titulo, nombre_archivo, modo="compacto"):
     df = limpiar_df(df)
     df = df.copy()
 
