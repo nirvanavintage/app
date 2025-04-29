@@ -33,20 +33,20 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         return
 
     df = df.copy()
-    df['Vendida'] = df.get('Vendida').fillna(False).astype(str).str.lower().isin(['true', '1', 'x'])
+
+    if 'Vendida' in df.columns:
+        df['Vendida'] = df['Vendida'].astype(str).str.strip().str.lower().isin(['true', '1', 'x'])
+    else:
+        df['Vendida'] = False
 
     df['Descripcion'] = df.apply(
         lambda row: (
             f"{row.get('Tipo de prenda', '')}, Talla: {row.get('Talla', '')}, {row.get('Caracteristicas (Color, estampado, material...)', '')}" +
-            (f" | ✔ {row.get('Fecha Vendida')}" if row.get('Vendida') else " | ✖ No vendida")
+            (f" | ✔ {row.get('Fecha Vendida') or ''}" if row.get('Vendida') else " | ✖ No vendida")
         ), axis=1
     )
 
-    if 'Fecha de recepcion' in df.columns:
-        df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
-    else:
-        df['Recepcion'] = ''
-
+    df['Recepcion'] = pd.to_datetime(df.get('Fecha de recepcion', pd.NaT), errors='coerce').dt.strftime('%d/%m/%Y')
     precios = pd.to_numeric(df.get('Precio', 0), errors='coerce').fillna(0)
     df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
 
