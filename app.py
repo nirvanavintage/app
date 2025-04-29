@@ -33,15 +33,20 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         return
 
     df = df.copy()
-    df['Vendida'] = df['Vendida'].fillna(False)
+    df['Vendida'] = df.get('Vendida', False).fillna(False)
     df['Descripcion'] = df.apply(
         lambda row: (
             f"{row.get('Tipo de prenda', '')}, Talla: {row.get('Talla', '')}, {row.get('Caracteristicas (Color, estampado, material...)', '')}" +
             (f" | ✔ {row.get('Fecha Vendida')}" if row.get('Vendida') else " | ✖ No vendida")
         ), axis=1
     )
-    df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
-    precios = pd.to_numeric(df['Precio'], errors='coerce').fillna(0)
+
+    if 'Fecha de recepcion' in df.columns:
+        df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
+    else:
+        df['Recepcion'] = ''
+
+    precios = pd.to_numeric(df.get('Precio', 0), errors='coerce').fillna(0)
     df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
 
     col_w = [30, 180, 25]
@@ -58,6 +63,10 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         pdf.cell(col_w[2], 6, clean_text(row['Precio_Texto']), border=1)
         pdf.ln()
     pdf.ln(6)
+
+# El resto del código permanece sin cambios
+
+# (...)
 
 def generar_pdf_prendas(df, titulo):
     pdf = FPDF(orientation="L", unit="mm", format="A4")
