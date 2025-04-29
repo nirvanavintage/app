@@ -417,60 +417,64 @@ elif seccion == "Reporte Diario":
             file_name=f"reporte_diario_{hoy.date()}.xlsx"
         )
 
-    
     if st.button("Descargar Reporte en PDF"):
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Helvetica", size=12)
-    
-        pdf.set_font(style="B", size=16)
-        pdf.cell(0, 10, f" Reporte Diario - {hoy.date()}", ln=True, align="C")
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, f"Reporte Diario - {hoy.date()}", ln=True, align='C')
         pdf.ln(10)
     
-        pdf.set_font(style="", size=12)
-        pdf.cell(0, 8, f" Total ganado: EUR {total_ganado:.2f}", ln=True)
-        pdf.cell(0, 8, f" Comisión clientes (30%): EUR {comision_clientes:.2f}", ln=True)
+        # Totales
+        pdf.set_font("Arial", '', 12)
+        pdf.cell(0, 8, f"Total ganado: EUR {total_ganado:.2f}", ln=True)
+        pdf.cell(0, 8, f"Comisión clientes (30%): EUR {comision_clientes:.2f}", ln=True)
         pdf.cell(0, 8, f"Total neto: EUR {total_neto:.2f}", ln=True)
-        pdf.ln(8)
+        pdf.ln(10)
     
-        pdf.set_font(style="B", size=12)
-        pdf.cell(0, 8, " Ventas del Día:", ln=True)
-        pdf.set_font(size=10)
+        # Ventas del Día
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 8, "Ventas del Día:", ln=True)
     
-        for _, row in ventas_dia[columnas_visibles].iterrows():
-            try:
-                id_prenda = str(row.get("ID Prenda", ""))
-                cliente = str(row.get("Nº Cliente (Formato C-xxx)", ""))
-                tipo = str(row.get("Tipo de prenda", ""))
-                talla = str(row.get("Talla", ""))
-                precio = str(row.get("Precio", ""))
-                fecha = pd.to_datetime(row.get("Fecha Vendida", ""), errors='coerce')
-                fecha_str = fecha.date().isoformat() if pd.notna(fecha) else "Fecha inválida"
+        if not ventas_dia.empty:
+            pdf.set_font("Arial", '', 10)
+            for _, row in ventas_dia.iterrows():
+                try:
+                    idp = str(row.get("ID Prenda", ""))
+                    cliente = str(row.get("Nº Cliente (Formato C-xxx)", ""))
+                    tipo = str(row.get("Tipo de prenda", ""))
+                    talla = str(row.get("Talla", ""))
+                    precio = str(row.get("Precio", ""))
+                    fecha = row.get("Fecha Vendida")
+                    fecha_str = pd.to_datetime(fecha, errors='coerce').strftime("%d/%m/%Y") if pd.notna(fecha) else "Fecha inválida"
     
-                linea = f"- {id_prenda} | Cliente: {cliente} | {tipo} Talla {talla} | EUR {precio} | {fecha_str}"
-                pdf.multi_cell(0, 8, linea)
-            except:
-                pdf.multi_cell(0, 8, " Error al mostrar una venta.")
+                    linea = f"- {idp} | Cliente: {cliente} | {tipo} Talla {talla} | EUR {precio} | {fecha_str}"
+                    pdf.cell(0, 6, linea, ln=True)
+                except:
+                    pdf.cell(0, 6, "Error al mostrar una venta.", ln=True)
+        else:
+            pdf.set_font("Arial", '', 10)
+            pdf.cell(0, 6, "No hay ventas registradas ese día.", ln=True)
     
-        pdf.ln(8)
+        # Altas del día
+        pdf.ln(10)
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 8, "Nuevos clientes del día:", ln=True)
     
         if not nuevas_altas.empty:
-            pdf.set_font(style="B", size=12)
-            pdf.cell(0, 8, "Altas de nuevos clientes:", ln=True)
-            pdf.set_font(size=10)
+            pdf.set_font("Arial", '', 10)
             for _, row in nuevas_altas.iterrows():
                 try:
-                    linea = " - ".join([f"{col}: {str(row[col])}" for col in nuevas_altas.columns if pd.notna(row[col])])
-                    pdf.multi_cell(0, 8, linea)
-                    pdf.ln(1)
+                    datos = [f"{col}: {str(row[col])}" for col in nuevas_altas.columns if pd.notna(row[col])]
+                    linea = " | ".join(datos)
+                    pdf.cell(0, 6, linea[:90], ln=True)  # corta por si es muy largo
                 except:
-                    pdf.multi_cell(0, 8, " Error al mostrar un cliente.")
+                    pdf.cell(0, 6, "Error al mostrar un cliente.", ln=True)
+        else:
+            pdf.set_font("Arial", '', 10)
+            pdf.cell(0, 6, "No hay nuevos clientes registrados ese día.", ln=True)
     
+        # Exportar
         buffer = BytesIO()
         pdf.output(buffer)
         buffer.seek(0)
-        st.download_button(
-            label="Descargar PDF",
-            data=buffer.getvalue(),
-            file_name=f"reporte_diario_{hoy.date()}.pdf"
-        )
+        st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name=f"reporte_diario_{hoy.date()}.pdf")
