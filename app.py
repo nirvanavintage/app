@@ -26,7 +26,7 @@ if not st.session_state.authenticated:
     if st.button("🔓 Entrar"):
         if password == "nirvana2025":
             st.session_state.authenticated = True
-            st.experimental_set_query_params(auth="1")  # Simula login
+            st.rerun()
         else:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
@@ -44,166 +44,80 @@ st.markdown("""
 # Botón para recargar datos
 if st.button("🔄 Sincronizar datos desde Google Sheets"):
     st.cache_data.clear()
+    st.rerun()
 
 # Menú lateral
 seccion = st.sidebar.selectbox("Secciones", [
-    "Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"
-])
+    "Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"\])
 
-HIDE_COLS_PATTERN = [
-    "Marca temporal", "Merged Doc ID", "Merged Doc URL", "Link to merged Doc", "Document Merge Status"
-]
-
-def limpiar_df(df: pd.DataFrame) -> pd.DataFrame:
-    cols_a_quitar = [c for c in df.columns for pat in HIDE_COLS_PATTERN if pat.lower() in c.lower()]
-    return df.drop(columns=cols_a_quitar, errors="ignore")
-
-def clean_text(text):
-    if pd.isnull(text):
-        return ""
-    try:
-        return unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode("ascii")
-    except Exception:
-        return str(text)
-
-class PDFCustom(FPDF):
-    def header(self):
-        self.set_font("Helvetica", "B", 16)
-        self.cell(0, 10, "🧵 Nirvana Vintage – Informe de Cliente", ln=True, align="C")
-        self.ln(5)
-
-    def footer(self):
-        self.set_y(-15)
-        self.set_font("Helvetica", "I", 8)
-        self.set_text_color(128)
-        self.cell(0, 10, f"Página {self.page_no()}", align="C")
-
-def exportar_datos_cliente(pdf, cliente):
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(0, 10, "Datos del Cliente", ln=True)
-    pdf.set_font("Helvetica", size=9)
-    claves = ['ID Cliente', 'Nombre y Apellidos', 'DNI', 'Teléfono', 'Fecha de Alta', 'Nº de Formulario']
-    for campo in claves:
-        valor = cliente.get(campo, '')
-        pdf.cell(50, 6, f"{campo}:", ln=0)
-        pdf.cell(0, 6, clean_text(valor), ln=1)
-    pdf.ln(4)
-
-def exportar_descripcion_pdf(pdf, df, titulo_bloque):
-    pdf.set_font("Helvetica", "B", 11)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 10, clean_text(titulo_bloque), ln=True, fill=True)
-    pdf.set_font("Helvetica", size=9)
-    if df.empty:
-        pdf.cell(0, 6, "Sin datos.", ln=True)
-        return
-
-    df = df.copy()
-
-    if 'Vendida' in df.columns:
-        df['Vendida'] = df['Vendida'].astype(str).str.strip().str.lower().isin(['true', '1', 'x'])
-    else:
-        df['Vendida'] = False
-
-    df['Descripcion'] = df.apply(
-        lambda row: (
-            f"{row.get('Tipo de prenda', '')}, Talla: {row.get('Talla', '')}, {row.get('Caracteristicas (Color, estampado, material...)', '')}" +
-            (f" | ✔ {row.get('Fecha Vendida') or ''}" if row.get('Vendida') else " | ✖ No vendida")
-        ), axis=1
-    )
-
-    df['Recepcion'] = df['Fecha de recepcion'].astype(str)
-
-    precios = pd.to_numeric(df.get('Precio', 0), errors='coerce').fillna(0)
-    df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
-
-    col_w = [35, 160, 25]
-    headers = ['Recepcion', 'Descripcion', 'Precio']
-    pdf.set_fill_color(225, 225, 225)
-    for i, col in enumerate(headers):
-        pdf.cell(col_w[i], 7, clean_text(col), border=1, fill=True)
-    pdf.ln()
-    for _, row in df.iterrows():
-        pdf.cell(col_w[0], 6, clean_text(row['Recepcion']), border=1)
-        x = pdf.get_x()
-        y = pdf.get_y()
-        pdf.multi_cell(col_w[1], 6, clean_text(row['Descripcion']), border=1)
-        pdf.set_xy(x + col_w[1], y)
-        pdf.cell(col_w[2], 6, clean_text(row['Precio_Texto']), border=1)
-        pdf.ln()
-    pdf.ln(5)
+# Cargar datos desde Google Sheets
+SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
+URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 
 @st.cache_data
-def cargar_datos():
-    return pd.DataFrame(), pd.DataFrame()
+def cargar(sheet):
+    return pd.read_csv(URL_BASE + sheet)
 
-df_prendas, df_clientes = cargar_datos()
+try:
+    df_prendas = cargar("Prendas")
+    df_clientes = cargar("Clientes")
+except Exception as e:
+    st.error("❌ No se pudieron cargar los datos.")
+    st.stop()
 
-st.markdown("""
-<h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
-<div style='text-align:center'>
-    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
-    <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
-    <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
-</div>
-""", unsafe_allow_html=True)
+# Normalizar campo Vendida
+df_prendas["Vendida"] = df_prendas["Vendida"].fillna(False).astype(bool)
 
-seccion = st.sidebar.selectbox("Secciones", ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"])
+# Secciones
+if seccion == "Buscar Cliente":
+    nombre = st.text_input("🔍 Introduce el nombre del cliente")
+    if nombre:
+        coincidencias = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
+        st.dataframe(coincidencias, use_container_width=True)
 
-if not df_prendas.empty:
-    df_prendas['Vendida'] = df_prendas['Vendida'].astype(str).str.strip().str.lower().isin(['true', '1', 'x'])
-    df_limpio = limpiar_df(df_prendas)
+elif seccion == "Consultar Stock":
+    stock = df_prendas[df_prendas["Vendida"] == False]
+    st.dataframe(stock, use_container_width=True)
+    st.download_button("⬇️ Descargar Stock", stock.to_csv(index=False), file_name="stock.csv")
 
-    if seccion == "Consultar Stock":
-        st.subheader("👕 Prendas en stock")
-        stock = df_limpio[df_limpio['Vendida'] == False]
-        filtros = st.multiselect("Filtrar por columna", options=stock.columns.tolist())
-        for f in filtros:
-            opciones = sorted(stock[f].dropna().astype(str).unique())
-            seleccion = st.multiselect(f"{f}", opciones, default=opciones)
-            stock = stock[stock[f].astype(str).isin(seleccion)]
-        st.dataframe(stock, use_container_width=True)
-        st.download_button("📥 Descargar CSV", stock.to_csv(index=False).encode(), file_name="stock.csv")
+elif seccion == "Consultar Vendidos":
+    vendidos = df_prendas[df_prendas["Vendida"] == True]
+    st.dataframe(vendidos, use_container_width=True)
+    st.download_button("⬇️ Descargar Vendidos", vendidos.to_csv(index=False), file_name="vendidos.csv")
 
-    elif seccion == "Consultar Vendidos":
-        st.subheader("✅ Prendas vendidas")
-        vendidos = df_limpio[df_limpio['Vendida'] == True]
-        filtros = st.multiselect("Filtrar por columna", options=vendidos.columns.tolist())
-        for f in filtros:
-            opciones = sorted(vendidos[f].dropna().astype(str).unique())
-            seleccion = st.multiselect(f"{f}", opciones, default=opciones)
-            vendidos = vendidos[vendidos[f].astype(str).isin(seleccion)]
-        st.dataframe(vendidos, use_container_width=True)
-        st.download_button("📥 Descargar CSV", vendidos.to_csv(index=False).encode(), file_name="vendidos.csv")
+elif seccion == "Reporte Diario":
+    fecha = st.date_input("Selecciona una fecha para el reporte", value=datetime.today())
+    fecha_dt = pd.to_datetime(fecha)
+    vendidos_dia = df_prendas[(df_prendas["Vendida"]) & (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.date == fecha_dt.date())]
+    st.subheader(f"✅ Prendas Vendidas el {fecha_dt.strftime('%d/%m/%Y')} ({len(vendidos_dia)})")
+    st.dataframe(vendidos_dia, use_container_width=True)
 
-    elif seccion == "Buscar Cliente":
-        st.subheader("🔎 Buscar Cliente")
-        nombre = st.text_input("Introduce nombre o apellidos del cliente")
-        if nombre:
-            clientes_match = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
-            if clientes_match.empty:
-                st.warning("No se encontraron coincidencias.")
-            else:
-                st.success(f"Se encontraron {len(clientes_match)} cliente(s)")
-                st.dataframe(limpiar_df(clientes_match), use_container_width=True)
+    if st.button("📄 Descargar PDF del Día"):
+        from fpdf import FPDF
 
-                cliente = clientes_match.iloc[0].to_dict()
-                ids = clientes_match["ID Cliente"].unique()
-                prendas_cliente = df_limpio[df_limpio["Nº Cliente (Formato C-xxx)"].isin(ids)]
-                st.subheader("👜 Prendas del cliente")
-                st.dataframe(prendas_cliente, use_container_width=True)
+        class PDF(FPDF):
+            def header(self):
+                self.set_font("Helvetica", "B", 12)
+                self.cell(0, 10, f"Ventas del {fecha_dt.strftime('%d/%m/%Y')}", ln=True, align="C")
+                self.ln(5)
 
-                if st.button("📄 PDF Informe del Cliente"):
-                    prendas_ventas = prendas_cliente[prendas_cliente['Vendida'] == True]
-                    prendas_stock = prendas_cliente[prendas_cliente['Vendida'] != True]
+        pdf = PDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", size=10)
 
-                    pdf = PDFCustom()
-                    pdf.add_page()
-                    exportar_datos_cliente(pdf, cliente)
-                    exportar_descripcion_pdf(pdf, prendas_ventas, "🟢 Prendas Vendidas")
-                    exportar_descripcion_pdf(pdf, prendas_stock, "🟡 Prendas en stock")
+        total = 0
+        for _, row in vendidos_dia.iterrows():
+            desc = f"{row['Tipo de prenda']}, Talla: {row['Talla']}, {row['Caracteristicas (Color, estampado, material...)']}"
+            precio = pd.to_numeric(row['Precio'], errors='coerce')
+            total += 0 if pd.isna(precio) else precio
+            pdf.cell(0, 10, desc, ln=True)
 
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                        pdf.output(tmp.name)
-                        tmp.seek(0)
-                        st.download_button("📄 Descargar PDF Informe Cliente", tmp.read(), file_name=f"informe_cliente_{cliente['ID Cliente']}.pdf", mime="application/pdf")
+        pdf.ln(5)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 10, f"Total prendas: {len(vendidos_dia)} | Total vendido: {int(total)} €", ln=True)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            pdf.output(tmp.name)
+            tmp.seek(0)
+            st.download_button("📄 Descargar PDF", tmp.read(), file_name=f"ventas_{fecha_dt.strftime('%Y-%m-%d')}.pdf", mime="application/pdf")
+            os.unlink(tmp.name)
