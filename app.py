@@ -32,14 +32,17 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         pdf.cell(0, 6, "Sin datos.", ln=True)
     else:
         df = df.copy()
-        df['Descripcion'] = (
-            df['Tipo de prenda'].fillna('') +
-            ', Talla: ' + df['Talla'].fillna('') +
-            ', ' + df['Caracteristicas (Color, estampado, material...)'].fillna('') +
-            df.apply(lambda row: f" | {'✔ ' + str(row['Fecha Vendida']) if bool(row['Vendida']) else '✖ No vendida'}", axis=1)
+        df['Descripcion'] = df.apply(
+            lambda row: (
+                (row.get('Tipo de prenda') or '') +
+                ', Talla: ' + (row.get('Talla') or '') +
+                ', ' + (row.get('Caracteristicas (Color, estampado, material...)') or '') +
+                (f" | ✔ {row.get('Fecha Vendida')}" if bool(row.get('Vendida')) else " | ✖ No vendida")
+            ), axis=1
+        )
         df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
         df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).map(lambda x: f"{int(x)} €")
-        export_df = df[['Recepcion', 'Descripcion', 'Precio']].astype(str).fillna(""))
+        export_df = df[['Recepcion', 'Descripcion', 'Precio']].astype(str).fillna("")
 
         col_w = [30, 180, 25]
         headers = ['Recepcion', 'Descripcion', 'Precio']
@@ -64,7 +67,7 @@ def generar_pdf_prendas(df, titulo):
     pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
     pdf.ln(5)
     exportar_descripcion_pdf(pdf, df, "Listado")
-    total = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).sum() if df['Precio'].dtype != 'O' else pd.to_numeric(df['Precio'].str.replace(" €", "", regex=False), errors='coerce').fillna(0).sum()
+    total = pd.to_numeric(df['Precio'].str.replace(" €", "", regex=False), errors='coerce').fillna(0).sum()
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(0, 8, clean_text(f"Total prendas: {len(df)} | Total vendido: {int(total)} €"), ln=True)
     return pdf
