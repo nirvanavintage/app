@@ -280,10 +280,12 @@ elif seccion == "Consultar Vendidos":
         pdf.output(buffer)
         buffer.seek(0)
         st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name="vendidos_filtrado.pdf")
+
+# --- Generador de Etiquetas ---
 elif seccion == "Generador de Etiquetas":
     st.markdown("### 🏷️ Generador de Etiquetas")
     cod = st.text_input("Introduce un código de prenda")
-    hoy = pd.Timestamp.today().normalize()
+    hoy = pd.Timestamp.today().date()
 
     st.markdown("#### 🔹 Generar una sola etiqueta")
     if st.button("Generar etiqueta única") and cod:
@@ -291,59 +293,54 @@ elif seccion == "Generador de Etiquetas":
         if not prenda.empty:
             st.dataframe(prenda)
             row = prenda.iloc[0]
-
             pdf = FPDF(orientation='P', unit='mm', format=(50, 30))  # Tamaño etiqueta pequeña
             pdf.add_page()
             pdf.set_auto_page_break(False)
             pdf.set_font("Arial", 'B', 12)
-            
-            # Centrado vertical manual
-            top_margin = 4
-            pdf.set_y(top_margin)
-            
+            pdf.set_y(4)  # Centrado vertical
+
             pdf.cell(0, 7, texto_fpdf(f"€ {row.get('Precio', '')}"), ln=1, align='C')
             pdf.cell(0, 6, texto_fpdf(f"Talla {row.get('Talla', '')}"), ln=1, align='C')
-            
             pdf.set_font("Arial", '', 9)
             pdf.cell(0, 5, texto_fpdf(f"Cliente: {row.get('Nº Cliente (Formato C-xxx)', '')}"), ln=1, align='C')
             pdf.cell(0, 5, texto_fpdf(f"Prenda: {row.get('ID Prenda', '')}"), ln=1, align='C')
 
+            buffer = BytesIO()
+            pdf.output(buffer)
+            buffer.seek(0)
+            st.download_button("⬇️ Descargar Etiqueta", buffer.getvalue(), file_name=f"etiqueta_{cod}.pdf")
+
     st.markdown("#### 🔹 Generar etiquetas de productos recibidos hoy")
-    hoy_recibidas = df_prendas[df_prendas["Fecha de recepción"].dt.normalize() == hoy]
+    recibidas_hoy = df_prendas[df_prendas["Fecha de recepción"].dt.date == hoy]
 
-    if not hoy_recibidas.empty:
-        st.dataframe(hoy_recibidas)
-
-        if st.button("Generar PDF etiquetas del día"):
-            etiquetas_por_fila = 3
-            filas_por_pagina = 10
+    if not recibidas_hoy.empty:
+        st.dataframe(recibidas_hoy)
+        if st.button("🖨️ Generar PDF etiquetas del día"):
+            etiquetas_por_fila = 2
+            filas_por_pagina = 5
             etiquetas_por_pagina = etiquetas_por_fila * filas_por_pagina
-            etiqueta_ancho = 60
-            etiqueta_alto = 30
+            etiqueta_ancho = 70
+            etiqueta_alto = 40
 
             pdf = FPDF(orientation='P', unit='mm', format='A4')
             pdf.set_auto_page_break(auto=False)
 
-            for i, (_, row) in enumerate(hoy_recibidas.iterrows()):
+            for i, (_, row) in enumerate(recibidas_hoy.iterrows()):
                 if i % etiquetas_por_pagina == 0:
                     pdf.add_page()
-                x = 10 + (i % etiquetas_por_fila) * (etiqueta_ancho + 5)
-                y = 10 + ((i // etiquetas_por_fila) % filas_por_pagina) * (etiqueta_alto + 5)
-
+                x = 10 + (i % etiquetas_por_fila) * (etiqueta_ancho + 10)
+                y = 10 + ((i // etiquetas_por_fila) % filas_por_pagina) * (etiqueta_alto + 10)
                 pdf.set_xy(x, y)
                 pdf.set_font("Arial", 'B', 12)
-                pdf.multi_cell(etiqueta_ancho, 8, texto_fpdf(f"€ {row.get('Precio', '')}"), border=0, align='C')
-                pdf.set_xy(x, y + 8)
-                pdf.multi_cell(etiqueta_ancho, 8, texto_fpdf(f"Talla {row.get('Talla', '')}"), border=0, align='C')
-                pdf.set_xy(x, y + 16)
+                pdf.cell(etiqueta_ancho, 7, texto_fpdf(f"€ {row.get('Precio', '')}"), ln=2, align='C')
+                pdf.cell(etiqueta_ancho, 6, texto_fpdf(f"Talla {row.get('Talla', '')}"), ln=2, align='C')
                 pdf.set_font("Arial", '', 9)
-                pdf.multi_cell(etiqueta_ancho, 6, texto_fpdf(f"Cliente: {row.get('Nº Cliente (Formato C-xxx)', '')}"), border=0, align='C')
-                pdf.set_xy(x, y + 22)
-                pdf.multi_cell(etiqueta_ancho, 6, texto_fpdf(f"Prenda: {row.get('ID Prenda', '')}"), border=0, align='C')
+                pdf.cell(etiqueta_ancho, 5, texto_fpdf(f"Cliente: {row.get('Nº Cliente (Formato C-xxx)', '')}"), ln=2, align='C')
+                pdf.cell(etiqueta_ancho, 5, texto_fpdf(f"Prenda: {row.get('ID Prenda', '')}"), ln=2, align='C')
 
             buffer = BytesIO()
             pdf.output(buffer)
             buffer.seek(0)
             st.download_button("⬇️ Descargar Todas las Etiquetas", buffer.getvalue(), file_name="etiquetas_recibidas_hoy.pdf")
     else:
-        st.info("Hoy no se han recibido nuevas prendas.")
+        st.info("No hay prendas registradas como recibidas hoy.")
