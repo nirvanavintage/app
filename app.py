@@ -450,7 +450,7 @@ elif seccion == "Reporte Diario":
                 linea = f"- {id_prenda} | Cliente: {cliente} | {tipo} Talla {talla} | EUR {precio} | {fecha_str}"
                 pdf.multi_cell(0, 8, linea)
             except:
-                pdf.multi_cell(0, 8, "⚠ Error al mostrar una venta.")
+                pdf.multi_cell(0, 8, " Error al mostrar una venta.")
     
         pdf.ln(8)
     
