@@ -7,3 +7,4 @@ FPDF
 pdfkit
 wkhtmltopdf
 fpdf2
+xlsxwriter
