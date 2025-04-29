@@ -42,8 +42,6 @@ if not st.session_state.authenticated:
         else:
             st.warning("Contraseña o enlace incorrecto.")
     st.stop()
-
-# --- Título bonito con links arriba ---
 st.markdown("""
 <style>
 h1 {
@@ -73,10 +71,9 @@ h1 {
     <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>+ Nueva Prenda</a>
     <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>+ Nuevo Cliente</a>
     <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>✔️ Marcar como Vendido</a>
-    <a href='https://app-nirvana.streamlit.app/?seccion=avisos' target='_blank'>📩 Avisos</a>
-    </div>
-    """, unsafe_allow_html=True)
-
+    <a href='?seccion=avisos' target='_self'>📩 Avisos</a>
+</div>
+""", unsafe_allow_html=True)
 
 # --- URL construida dinámicamente desde el ID guardado ---
 SHEET_ID = st.session_state.get("sheet_id", "")
