@@ -66,14 +66,17 @@ h1 {
 </div>
 """, unsafe_allow_html=True)
 
+
+@st.cache_data(show_spinner=False)
+def cargar(sheet):
+    return pd.read_csv(URL_BASE + sheet)
+
+
 # 🔄 Sincronizar
 if st.button("🔄 Sincronizar datos desde Google Sheets"):
     st.cache_data.clear()
     st.rerun()
 
-@st.cache_data(show_spinner=False)
-def cargar(sheet):
-    return pd.read_csv(URL_BASE + sheet)
 
 try:
     df_prendas = cargar("Prendas")
