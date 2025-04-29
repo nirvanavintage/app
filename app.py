@@ -128,9 +128,14 @@ if seccion == "Buscar Cliente":
                 buffer.seek(0)
                 st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
 # --- Consultar Stock ---
-# --- Consultar Stock ---
 elif seccion == "Consultar Stock":
     st.header("📦 Prendas en Stock")
+
+    def texto_fpdf(texto):
+        # Normaliza y convierte a ascii compatible con FPDF
+        if pd.isna(texto):
+            return ""
+        return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('ascii')
 
     stock = df_prendas[df_prendas["Vendida"] != True].copy()
 
@@ -145,20 +150,22 @@ elif seccion == "Consultar Stock":
     with st.expander("⚙️ Filtros"):
         for columna in columnas_filtro:
             opciones = stock[columna].dropna().unique().tolist()
-            seleccion = st.multiselect(f"Filtrar por {columna}", opciones)
+            seleccion = st.multiselect(f"Filtrar por {columna}", opciones, default=[])
             if seleccion:
                 stock = stock[stock[columna].isin(seleccion)]
 
     columnas_visibles = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Fecha de recepción", "Precio", "Descripción"]
     st.dataframe(stock[columnas_visibles], use_container_width=True)
 
+    # Excel
     if st.button("⬇️ Descargar Excel Stock"):
         buffer = BytesIO()
         with pd.ExcelWriter(buffer) as writer:
             stock[columnas_visibles].to_excel(writer, index=False, sheet_name="Stock")
         buffer.seek(0)
-        st.download_button("Descargar Stock Excel", buffer, file_name="stock_filtrado.xlsx")
+        st.download_button("📥 Descargar Stock Excel", buffer.getvalue(), file_name="stock_filtrado.xlsx")
 
+    # PDF
     if st.button("🖨️ Descargar PDF Stock"):
         pdf = FPDF(orientation='L', unit='mm', format='A4')
         pdf.add_page()
@@ -166,11 +173,13 @@ elif seccion == "Consultar Stock":
         pdf.cell(0, 10, texto_fpdf("Stock de Prendas (filtrado)"), ln=True, align='C')
         pdf.ln(5)
 
+        # Cabeceras
         pdf.set_font("Arial", 'B', 10)
         for col in columnas_visibles:
             pdf.cell(60 if col == "Descripción" else 40, 8, texto_fpdf(col), border=1)
         pdf.ln()
 
+        # Filas
         pdf.set_font("Arial", '', 9)
         for _, row in stock[columnas_visibles].iterrows():
             for col in columnas_visibles:
