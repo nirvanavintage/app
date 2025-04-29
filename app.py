@@ -297,19 +297,19 @@ elif seccion == "Generador de Etiquetas":
             talla = row.get("Talla", "")
             cliente = row.get("Nº Cliente (Formato C-xxx)", "")
             prenda_id = row.get("ID Prenda", "")
-
+        
             pdf = FPDF(orientation='P', unit='mm', format=(50, 30))  # Tamaño etiqueta
             pdf.add_page()
             pdf.set_auto_page_break(False)
             pdf.set_font("Arial", 'B', 12)
             pdf.set_y(4)
-
-            pdf.cell(0, 7, "€ " + precio, ln=1, align='C')
+        
+            pdf.cell(0, 7, f"EUR {precio}", ln=1, align='C')
             pdf.cell(0, 6, f"Talla {talla}", ln=1, align='C')
             pdf.set_font("Arial", '', 9)
             pdf.cell(0, 5, f"Cliente: {cliente}", ln=1, align='C')
             pdf.cell(0, 5, f"Prenda: {prenda_id}", ln=1, align='C')
-
+        
             buffer = BytesIO()
             pdf.output(buffer)
             buffer.seek(0)
