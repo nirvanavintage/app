@@ -165,7 +165,7 @@ if seccion == "Buscar Cliente":
             st.success(f"Se encontraron {len(clientes_match)} cliente(s)")
             st.dataframe(limpiar_df(clientes_match), use_container_width=True)
             ids = clientes_match["ID Cliente"].unique()
-            prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"].isin(ids)]
+            prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx) "].isin(ids)]
             st.subheader("👜 Prendas del cliente")
             st.dataframe(prendas_cliente, use_container_width=True)
 
