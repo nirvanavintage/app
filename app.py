@@ -87,7 +87,8 @@ if seccion == "Buscar Cliente":
                             pdf.cell(0, 7, texto_fpdf(f"Recepción: {fecha_str}"), ln=True)
                             fecha_actual = fecha_str
                     pdf.set_font("Arial", '', 10)
-                    descripcion = f"- {row['Tipo de prenda']} | Talla {row['Talla']} | {row['Caracteristicas (Color, estampado, material...)]}".strip()
+                    descripcion = f"- {row['Tipo de prenda']} | Talla {row['Talla']} | {row['Caracteristicas (Color, estampado, material...)']}".strip()
+
                     pdf.cell(0, 6, texto_fpdf(descripcion), ln=True)
 
                 buffer = BytesIO()
