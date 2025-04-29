@@ -198,7 +198,9 @@ elif seccion == "Consultar Stock":
         pdf.output(buffer)
         buffer.seek(0)
         st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name="stock_filtrado.pdf")
-    ")
+
+
+
 elif seccion == "Consultar Vendidos":
     st.header("✅ Prendas Vendidas")
     vendidos = df_prendas[df_prendas["Vendida"] == True]
