@@ -33,6 +33,7 @@ if not st.session_state.authenticated:
         else:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
+# Mejor diseño: título + botones + protección del valor seccion
 st.markdown("""
 <style>
 h1 {
@@ -40,6 +41,7 @@ h1 {
     font-size: 36px;
     color: #fdd835;
     font-weight: bold;
+    margin-bottom: 20px;
 }
 .link-buttons a {
     margin: 0 15px;
@@ -57,39 +59,48 @@ h1 {
 </style>
 
 <h1>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
-<div class='link-buttons' style='text-align: center; margin-bottom: 30px;'>
+<div class='link-buttons' style='text-align: center; margin-bottom: 40px;'>
     <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>+ Nueva Prenda</a>
     <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>+ Nuevo Cliente</a>
     <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>✔️ Marcar como Vendido</a>
 </div>
 """, unsafe_allow_html=True)
 
-# Botón sincronizar
-if st.button("🔄 Sincronizar datos desde Google Sheets"):
-    st.cache_data.clear()
-    st.rerun()
+# 🔄 Sincronizar
+st.button("🔄 Sincronizar datos desde Google Sheets")
+
+# Sección inicializada para evitar NameError
+if "seccion" not in st.session_state:
+    st.session_state.seccion = ""
+
 st.markdown("## 📂 Selecciona una sección")
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    st.markdown("### ")
-    if st.button("🔍 Buscar Cliente", use_container_width=True):
-        seccion = "Buscar Cliente"
-    if st.button("📦 Consultar Stock", use_container_width=True):
-        seccion = "Consultar Stock"
+    if st.button("🔍 Buscar Cliente"):
+        st.session_state.seccion = "Buscar Cliente"
+    if st.button("📦 Consultar Stock"):
+        st.session_state.seccion = "Consultar Stock"
 
 with col2:
-    st.markdown("### ")
-    if st.button("✅ Consultar Vendidos", use_container_width=True):
-        seccion = "Consultar Vendidos"
-    if st.button("🏷️ Generador de Etiquetas", use_container_width=True):
-        seccion = "Generador de Etiquetas"
+    if st.button("✅ Consultar Vendidos"):
+        st.session_state.seccion = "Consultar Vendidos"
+    if st.button("🏷️ Generador de Etiquetas"):
+        st.session_state.seccion = "Generador de Etiquetas"
 
 with col3:
-    st.markdown("### ")
-    if st.button("📑 Reporte Diario", use_container_width=True):
-        seccion = "Reporte Diario"
+    if st.button("📑 Reporte Diario"):
+        st.session_state.seccion = "Reporte Diario"
+    if st.button("📅 Gestión de Citas"):
+        st.session_state.seccion = "Gestión de Citas"
 
+# Si no se ha pulsado ningún botón todavía
+if not st.session_state.seccion:
+    st.info("Selecciona una sección para comenzar.")
+    st.stop()
+
+# Asignar valor actual
+seccion = st.session_state.seccion
 # Datos
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
