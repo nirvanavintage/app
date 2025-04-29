@@ -76,6 +76,10 @@ h1 {
 </div>
 """, unsafe_allow_html=True)
 
+avisos_url = "https://app-nirvana.streamlit.app/?seccion=avisos"
+st.markdown(f"""<div style='position: fixed; top: 20px; right: 25px; z-index:9999'>
+    <a href="{avisos_url}" target="_blank" style='padding: 8px 18px; background-color: #ffe082; color: black; border-radius: 10px; font-weight: bold; text-decoration: none; border: 1px solid #aaa;'>📩 Avisos</a>
+</div>""", unsafe_allow_html=True)
 
 
 # --- URL construida dinámicamente desde el ID guardado ---
@@ -130,11 +134,6 @@ with col3:
     if st.button("📅 Gestión de Citas"):
         st.session_state.seccion = "Gestión de Citas"
 
-avisos_url = "https://app-nirvana.streamlit.app/?seccion=avisos"
-
-st.markdown(f"""<div style='position: fixed; top: 20px; right: 25px; z-index:9999'>
-    <a href="{avisos_url}" target="_blank" style='padding: 8px 18px; background-color: #ffe082; color: black; border-radius: 10px; font-weight: bold; text-decoration: none; border: 1px solid #aaa;'>📩 Avisos</a>
-</div>""", unsafe_allow_html=True)
 
 
 if not st.session_state.seccion:
