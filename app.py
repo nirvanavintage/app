@@ -27,21 +27,52 @@ def clean_text(text):
 
 def df_to_pdf(df, titulo, nombre_archivo):
     df = limpiar_df(df)
-    pdf = FPDF(orientation="L")
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=10)
-    pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
-    pdf.ln(4)
+    df = df.copy()
 
-    col_w = pdf.w / (len(df.columns) + 1)
+    # Fusionar columnas para hacerlo más compacto
+    if {'Tipo de prenda', 'Talla', 'Características (Color, estampado, material...)'}.issubset(df.columns):
+        df["Descripción"] = (
+            df["Tipo de prenda"].fillna('') + ", Talla: " + df["Talla"].fillna('') +
+            ", " + df["Características (Color, estampado, material...)"].fillna('')
+        )
+        df.drop(["Tipo de prenda", "Talla", "Características (Color, estampado, material...)"], axis=1, inplace=True)
+
+    df = df.astype(str).fillna("")
+
+    pdf = FPDF(orientation="L", unit="mm", format="A4")
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=12)
+    pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
+    pdf.ln(5)
+
+    pdf.set_font("Helvetica", size=8)
+    col_widths = {}
+    total_width = 277  # A4 landscape width minus margins
+
+    # Calcular anchos proporcionales
+    base_width = total_width / len(df.columns)
     for col in df.columns:
-        pdf.cell(col_w, 6, clean_text(col), border=1)
+        col_widths[col] = base_width
+
+    # Cabecera
+    for col in df.columns:
+        pdf.cell(col_widths[col], 6, clean_text(col), border=1, ln=0)
     pdf.ln()
 
+    # Filas
     for _, row in df.iterrows():
-        for item in row:
-            pdf.cell(col_w, 5, clean_text(item), border=1)
-        pdf.ln()
+        y_before = pdf.get_y()
+        max_y = y_before
+        x_start = pdf.get_x()
+        for col in df.columns:
+            text = clean_text(row[col])
+            x = pdf.get_x()
+            y = pdf.get_y()
+            pdf.multi_cell(col_widths[col], 4, text, border=1)
+            max_y = max(max_y, pdf.get_y())
+            pdf.set_xy(x + col_widths[col], y)
+        pdf.set_y(max_y)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
