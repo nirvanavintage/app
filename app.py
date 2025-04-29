@@ -199,26 +199,87 @@ elif seccion == "Consultar Stock":
         buffer.seek(0)
         st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name="stock_filtrado.pdf")
 
-
-
 elif seccion == "Consultar Vendidos":
     st.header("✅ Prendas Vendidas")
-    vendidos = df_prendas[df_prendas["Vendida"] == True]
-    st.dataframe(vendidos)
+
+    vendidos = df_prendas[df_prendas["Vendida"] == True].copy()
+    vendidos["Fecha Vendida"] = pd.to_datetime(vendidos["Fecha Vendida"], errors="coerce")
+    vendidos["Fecha Formateada"] = vendidos["Fecha Vendida"].dt.strftime("%d/%m/%Y")
+
+    # Filtros de fecha
+    with st.expander("📅 Filtrar por Fecha de Venta"):
+        col1, col2 = st.columns(2)
+        fecha_unica = col1.date_input("Filtrar por un día exacto", value=None)
+        fecha_inicio = col2.date_input("O por rango: Desde", value=None)
+        fecha_fin = col2.date_input("Hasta", value=None)
+
+        if fecha_unica:
+            vendidos = vendidos[vendidos["Fecha Vendida"].dt.date == fecha_unica]
+        elif fecha_inicio and fecha_fin:
+            vendidos = vendidos[(vendidos["Fecha Vendida"].dt.date >= fecha_inicio) & 
+                                (vendidos["Fecha Vendida"].dt.date <= fecha_fin)]
+
+    # Descripción enriquecida
+    vendidos["Descripción"] = vendidos.apply(
+        lambda row: f"{row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')} | Marca {row.get('Marca', '') or 'Sin marca'} | Características: {row.get('Caracteristicas (Color, estampado, material...)', '') or 'Sin descripción'}",
+        axis=1
+    )
+
+    # Filtros adicionales
+    columnas_filtro = [col for col in ["Talla", "Tipo de prenda", "Marca", "¿Donación o devolución?"] if col in vendidos.columns]
+    with st.expander("⚙️ Otros Filtros"):
+        for columna in columnas_filtro:
+            opciones = vendidos[columna].dropna().unique().tolist()
+            seleccion = st.multiselect(f"Filtrar por {columna}", opciones, default=[])
+            if seleccion:
+                vendidos = vendidos[vendidos[columna].isin(seleccion)]
+
+    columnas_visibles = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Fecha Formateada", "Precio", "Descripción"]
+    st.dataframe(vendidos[columnas_visibles], use_container_width=True)
+
+    # Excel export
     if st.button("⬇️ Descargar Excel Vendidos"):
         buffer = BytesIO()
         with pd.ExcelWriter(buffer) as writer:
-            vendidos.to_excel(writer, index=False)
+            vendidos[columnas_visibles].to_excel(writer, index=False, sheet_name="Vendidos")
         buffer.seek(0)
-        st.download_button("Descargar Vendidos Excel", buffer, file_name="vendidos.xlsx")
+        st.download_button("Descargar Excel", buffer, file_name="vendidos_filtrado.xlsx")
 
-# --- Reporte Diario ---
-elif seccion == "Reporte Diario":
-    st.header("📅 Reporte Diario")
-    fecha = st.date_input("Selecciona una fecha", value=datetime.today())
-    vendidos_fecha = df_prendas[(df_prendas["Vendida"] == True) & (df_prendas["Fecha Vendida"].dt.date == fecha)]
-    st.dataframe(vendidos_fecha)
+    # PDF export
+    if st.button("🖨️ Descargar PDF Vendidos"):
+        pdf = FPDF(orientation='L', unit='mm', format='A4')
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(0, 10, "Prendas Vendidas (filtrado)", ln=True, align='C')
+        pdf.ln(5)
 
+        col_widths = [35, 50, 35, 20, 150]
+
+        pdf.set_font("Arial", 'B', 10)
+        for i, col in enumerate(columnas_visibles):
+            pdf.cell(col_widths[i], 8, col, border=1)
+        pdf.ln()
+
+        pdf.set_font("Arial", '', 9)
+        for _, row in vendidos[columnas_visibles].iterrows():
+            for i, col in enumerate(columnas_visibles):
+                texto = str(row[col]) if pd.notna(row[col]) else ""
+                if col == "Descripción":
+                    y_before = pdf.get_y()
+                    x_before = pdf.get_x()
+                    pdf.multi_cell(col_widths[i], 8, texto, border=1)
+                    y_after = pdf.get_y()
+                    pdf.set_y(y_before)
+                    pdf.set_x(x_before + col_widths[i])
+                else:
+                    pdf.cell(col_widths[i], 8, texto, border=1)
+            pdf.ln()
+
+        buffer = BytesIO()
+        pdf.output(buffer)
+        buffer.seek(0)
+        st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name="vendidos_filtrado.pdf")
 # --- Generador de Etiquetas ---
 elif seccion == "Generador de Etiquetas":
     st.markdown("### 🏷️ Generador de Etiquetas")
