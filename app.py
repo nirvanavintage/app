@@ -434,7 +434,7 @@ elif seccion == "Reporte Diario":
         pdf.ln(8)
     
         pdf.set_font(style="B", size=12)
-        pdf.cell(0, 8, "🛍️ Ventas del Día:", ln=True)
+        pdf.cell(0, 8, " Ventas del Día:", ln=True)
         pdf.set_font(size=10)
     
         for _, row in ventas_dia[columnas_visibles].iterrows():
