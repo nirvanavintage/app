@@ -364,13 +364,10 @@ elif seccion == "Generador de Etiquetas":
     else:
         st.info("No hay prendas vendidas hoy para generar etiquetas.")
 
-from fpdf import FPDF import pandas as pd from io import BytesIO import streamlit as st
+
 
 elif seccion == "Reporte Diario": st.header("📑 Reporte Diario")
 
-python
-Copiar
-Editar
 fecha_reporte = st.date_input("Selecciona la fecha", pd.Timestamp.today(), format="YYYY/MM/DD")
 hoy = pd.Timestamp(fecha_reporte).normalize()
 
