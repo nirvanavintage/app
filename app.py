@@ -49,10 +49,32 @@ if st.button("🔄 Sincronizar datos desde Google Sheets"):
     st.cache_data.clear()
     st.rerun()
 
-# Sidebar
-seccion = st.sidebar.selectbox("Secciones", [
-    "Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario", "Generador de Etiquetas"
-])
+# Navegación visual mejorada
+st.markdown("## 📂 Selecciona una sección")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    if st.button("🔍 Buscar Cliente"):
+        seccion = "Buscar Cliente"
+    elif st.button("📦 Consultar Stock"):
+        seccion = "Consultar Stock"
+    else:
+        seccion = None
+
+with col2:
+    if st.button("✅ Consultar Vendidos"):
+        seccion = "Consultar Vendidos"
+    elif st.button("🛠️ Generador de Etiquetas"):
+        seccion = "Generador de Etiquetas"
+
+with col3:
+    if st.button("📑 Reporte Diario"):
+        seccion = "Reporte Diario"
+
+# Si no se ha pulsado nada todavía
+if "seccion" not in locals() or seccion is None:
+    st.info("Selecciona una sección para comenzar.")
+    st.stop()
 
 # Datos
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
