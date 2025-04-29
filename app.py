@@ -36,8 +36,7 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
             df['Tipo de prenda'].fillna('') +
             ', Talla: ' + df['Talla'].fillna('') +
             ', ' + df['Caracteristicas (Color, estampado, material...)'].fillna('') +
-            df.apply(lambda row: f" | {'✔ ' + str(row['Fecha Vendida']) if str(row['Vendida']).strip().lower() == 'true' else '✖ No vendida'}", axis=1)
-        )
+            df.apply(lambda row: f" | {'✔ ' + str(row['Fecha Vendida']) if bool(row['Vendida']) else '✖ No vendida'}", axis=1)
         df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
         df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).map(lambda x: f"{int(x)} €")
         export_df = df[['Recepcion', 'Descripcion', 'Precio']].astype(str).fillna("")
@@ -65,7 +64,7 @@ def generar_pdf_prendas(df, titulo):
     pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
     pdf.ln(5)
     exportar_descripcion_pdf(pdf, df, "Listado")
-    total = pd.to_numeric(df['Precio'].str.replace(" €", ""), errors='coerce').fillna(0).sum()
+    total = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).sum() if df['Precio'].dtype != 'O' else pd.to_numeric(df['Precio'].str.replace(" €", "", regex=False), errors='coerce').fillna(0).sum()
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(0, 8, clean_text(f"Total prendas: {len(df)} | Total vendido: {int(total)} €"), ln=True)
     return pdf
@@ -79,14 +78,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-menu_options = [
-    "Buscar Cliente",
-    "Consultar Stock",
-    "Consultar Vendidos",
-    "Generar Avisos de Hoy",
-    "Reporte Diario"
-]
-
+menu_options = ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Generar Avisos de Hoy", "Reporte Diario"]
 seccion = st.sidebar.selectbox("🪄 Secciones disponibles:", menu_options, index=0)
 
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
@@ -142,10 +134,11 @@ if seccion == "Buscar Cliente":
 
 elif seccion == "Reporte Diario":
     fecha_seleccionada = st.date_input("Selecciona una fecha para el reporte", value=datetime.today().date())
-    fecha_dt = pd.to_datetime(fecha_seleccionada)
+    fecha_dt = pd.to_datetime(fecha_seleccionada).normalize()
+    df_prendas['Fecha Vendida'] = pd.to_datetime(df_prendas['Fecha Vendida'], errors='coerce')
     vendidos_fecha = prendas_limpio[
-        df_prendas["Vendida"] &
-        (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.normalize() == fecha_dt)
+        (df_prendas['Vendida']) &
+        (df_prendas['Fecha Vendida'].dt.normalize() == fecha_dt)
     ]
     st.subheader(f"✅ Prendas Vendidas el {fecha_dt.date()} ({len(vendidos_fecha)})")
     st.dataframe(vendidos_fecha, use_container_width=True)
