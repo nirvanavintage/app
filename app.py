@@ -133,15 +133,15 @@ if seccion == "Buscar Cliente":
                 pdf.output(buffer)
                 buffer.seek(0)
                 st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
-# --- Consultar Stock ---
 elif seccion == "Consultar Stock":
     st.header("📦 Prendas en Stock")
 
     stock = df_prendas[df_prendas["Vendida"] != True].copy()
 
-    # Crear columna de descripción agrupada
+    # Formatear fecha y crear columna de descripción agrupada
+    stock["Fecha de recepción"] = pd.to_datetime(stock["Fecha de recepción"], errors="coerce").dt.strftime("%d/%m/%Y")
     stock["Descripción"] = stock.apply(
-        lambda row: f"{row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')} | Marca {row.get('Marca', '')} | Características: {row.get('Caracteristicas (Color, estampado, material...)', '')}",
+        lambda row: f"{row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')} | Marca {row.get('Marca', '') or 'Sin marca'} | Características: {row.get('Caracteristicas (Color, estampado, material...)', '') or 'Sin descripción'}",
         axis=1
     )
 
@@ -149,8 +149,8 @@ elif seccion == "Consultar Stock":
 
     with st.expander("⚙️ Filtros"):
         for columna in columnas_filtro:
-            opciones = sorted(stock[columna].dropna().unique().tolist())
-            seleccion = st.multiselect(f"Filtrar por {columna}", opciones)
+            opciones = stock[columna].dropna().unique().tolist()
+            seleccion = st.multiselect(f"Filtrar por {columna}", opciones, default=[])
             if seleccion:
                 stock = stock[stock[columna].isin(seleccion)]
 
@@ -163,37 +163,37 @@ elif seccion == "Consultar Stock":
             stock[columnas_visibles].to_excel(writer, index=False, sheet_name="Stock")
         buffer.seek(0)
         st.download_button("Descargar Stock Excel", buffer, file_name="stock_filtrado.xlsx")
+
     if st.button("🖨️ Descargar PDF Stock"):
         pdf = FPDF(orientation='L', unit='mm', format='A4')
         pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, texto_fpdf("Stock de Prendas (filtrado)"), ln=True, align='C')
+        pdf.cell(0, 10, "Stock de Prendas (filtrado)", ln=True, align='C')
         pdf.ln(5)
-    
+
+        col_widths = [35, 50, 35, 20, 150]  # Aumentado el ancho de Descripción
+
         pdf.set_font("Arial", 'B', 10)
-    
-        # Definir anchos de columna personalizados
-        col_widths = {
-            "ID Prenda": 30,
-            "Nº Cliente (Formato C-xxx)": 40,
-            "Fecha de recepción": 40,
-            "Precio": 20,
-            "Descripción": 150
-        }
-    
-        # Encabezados
-        for col in columnas_visibles:
-            pdf.cell(col_widths[col], 8, texto_fpdf(col), border=1)
+        for i, col in enumerate(columnas_visibles):
+            pdf.cell(col_widths[i], 8, col, border=1)
         pdf.ln()
-    
-        # Filas
+
         pdf.set_font("Arial", '', 9)
         for _, row in stock[columnas_visibles].iterrows():
-            for col in columnas_visibles:
-                valor = str(row[col]) if pd.notna(row[col]) else ""
-                pdf.cell(col_widths[col], 8, texto_fpdf(valor), border=1)
+            for i, col in enumerate(columnas_visibles):
+                texto = str(row[col]) if pd.notna(row[col]) else ""
+                if col == "Descripción":
+                    y_before = pdf.get_y()
+                    x_before = pdf.get_x()
+                    pdf.multi_cell(col_widths[i], 8, texto, border=1)
+                    y_after = pdf.get_y()
+                    pdf.set_y(y_before)
+                    pdf.set_x(x_before + col_widths[i])
+                else:
+                    pdf.cell(col_widths[i], 8, texto, border=1)
             pdf.ln()
-    
+
         buffer = BytesIO()
         pdf.output(buffer)
         buffer.seek(0)
