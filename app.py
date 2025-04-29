@@ -8,16 +8,19 @@ import unicodedata
 
 st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="wide")
 
-# Seguridad básica
+# Seguridad básica persistente
 if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
     password = st.text_input("Contraseña:", type="password")
-    if password == "nirvana2025":
-        st.session_state.authenticated = True
-        st.success("Acceso concedido. Recarga la página si no se actualiza.")
-        st.stop()
-    else:
-        st.warning("Introduce la contraseña para acceder.")
-        st.stop()
+    if st.button("🔓 Entrar"):
+        if password == "nirvana2025":
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
+    st.stop()
 
 # Botón para recargar datos
 if st.button("🔄 Sincronizar datos desde Google Sheets"):
@@ -77,8 +80,6 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         df['Vendida'] = df['Vendida'].astype(str).str.strip().str.lower().isin(['true', '1', 'x'])
     else:
         df['Vendida'] = False
-
-    es_bloque_vendido = "vendida" in titulo_bloque.lower()
 
     df['Descripcion'] = df.apply(
         lambda row: (
