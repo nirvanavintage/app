@@ -95,7 +95,8 @@ if seccion == "Buscar Cliente":
                 pdf.add_page()
                 pdf.set_font("Arial", 'B', 16)
                 nombre_cliente = resultados.iloc[0]["Nombre y Apellidos"]
-                pdf.cell(0, 10, texto_fpdf(f"Informe del cliente {id_cliente}  {nombre_cliente}"), ln=True, align='C')
+                pdf.cell(0, 10, texto_fpdf(f"Informe del cliente {id_cliente} {nombre_cliente}"), ln=True, align='C')
+
                 pdf.ln(10)
 
                 pdf.set_font("Arial", 'B', 12)
