@@ -25,9 +25,18 @@ def clean_text(text):
     except Exception:
         return str(text)
 
-def df_to_pdf(df, titulo, nombre_archivo):
+def def df_to_pdf(df, titulo, nombre_archivo, modo="compacto"):
     df = limpiar_df(df)
     df = df.copy()
+
+    if modo == "compacto" and {'ID Prenda', 'Nº Cliente (Formato C-xxx)', 'Fecha de recepción', 'Tipo de prenda', 'Talla', 'Características (Color, estampado, material...)', 'Precio', 'Vendida', 'Fecha Vendida'}.issubset(df.columns):
+        df['Cliente'] = df['Nº Cliente (Formato C-xxx)']
+        df['Recepción'] = df['Fecha de recepción']
+        df['Descripción'] = df['Tipo de prenda'].fillna('') + ', Talla: ' + df['Talla'].fillna('') + ', ' + df['Características (Color, estampado, material...)'].fillna('')
+        df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).map(lambda x: f"{x:,.0f} €".replace(",", "."))
+        df['Vendida'] = df.apply(lambda row: f"✔ {row['Fecha Vendida']}" if str(row['Vendida']).lower() == 'true' else '✖', axis=1)
+        columnas_finales = ['ID Prenda', 'Cliente', 'Recepción', 'Vendida', 'Descripción', 'Precio']
+        df = df[columnas_finales]
 
     columnas_finales = []
     if {'ID Prenda', 'Nº Cliente (Formato C-xxx)', 'Fecha de recepción', 'Tipo de prenda', 'Talla', 'Características (Color, estampado, material...)', 'Precio', 'Vendida', 'Fecha Vendida'}.issubset(df.columns):
@@ -264,4 +273,4 @@ elif seccion == "Reporte Diario":
         fecha_str = fecha_dt.strftime("%Y-%m-%d")
         hora_str = datetime.now().strftime("%H%M%S")
         titulo = f"Ventas del día {fecha_str}"
-        df_to_pdf(vendidos_fecha, titulo, f"ventas_{fecha_str}_{hora_str}.pdf")
+        df_to_pdf(vendidos_fecha, titulo, f"ventas_{fecha_str}_{hora_str}.pdf", modo="compacto")
