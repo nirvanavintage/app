@@ -33,14 +33,34 @@ if not st.session_state.authenticated:
         else:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
-
-# Encabezado principal
 st.markdown("""
-<h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
-<div style='text-align:center'>
-    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
-    <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
-    <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
+<style>
+h1 {
+    text-align: center;
+    font-size: 36px;
+    color: #fdd835;
+    font-weight: bold;
+}
+.link-buttons a {
+    margin: 0 15px;
+    padding: 10px 20px;
+    background-color: #262730;
+    color: white;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    border: 1px solid #444;
+}
+.link-buttons a:hover {
+    background-color: #444;
+}
+</style>
+
+<h1>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
+<div class='link-buttons' style='text-align: center; margin-bottom: 30px;'>
+    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>+ Nueva Prenda</a>
+    <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>+ Nuevo Cliente</a>
+    <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>✔️ Marcar como Vendido</a>
 </div>
 """, unsafe_allow_html=True)
 
@@ -48,33 +68,27 @@ st.markdown("""
 if st.button("🔄 Sincronizar datos desde Google Sheets"):
     st.cache_data.clear()
     st.rerun()
-
-# Navegación visual mejorada
 st.markdown("## 📂 Selecciona una sección")
-col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("🔍 Buscar Cliente"):
+    st.markdown("### ")
+    if st.button("🔍 Buscar Cliente", use_container_width=True):
         seccion = "Buscar Cliente"
-    elif st.button("📦 Consultar Stock"):
+    if st.button("📦 Consultar Stock", use_container_width=True):
         seccion = "Consultar Stock"
-    else:
-        seccion = None
 
 with col2:
-    if st.button("✅ Consultar Vendidos"):
+    st.markdown("### ")
+    if st.button("✅ Consultar Vendidos", use_container_width=True):
         seccion = "Consultar Vendidos"
-    elif st.button("🛠️ Generador de Etiquetas"):
+    if st.button("🏷️ Generador de Etiquetas", use_container_width=True):
         seccion = "Generador de Etiquetas"
 
 with col3:
-    if st.button("📑 Reporte Diario"):
+    st.markdown("### ")
+    if st.button("📑 Reporte Diario", use_container_width=True):
         seccion = "Reporte Diario"
-
-# Si no se ha pulsado nada todavía
-if "seccion" not in locals() or seccion is None:
-    st.info("Selecciona una sección para comenzar.")
-    st.stop()
 
 # Datos
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
