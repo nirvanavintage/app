@@ -39,10 +39,34 @@ def clean_text(text):
     except Exception:
         return str(text)
 
+class PDFCustom(FPDF):
+    def header(self):
+        self.set_font("Helvetica", "B", 16)
+        self.cell(0, 10, "🧵 Nirvana Vintage – Informe de Cliente", ln=True, align="C")
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Helvetica", "I", 8)
+        self.set_text_color(128)
+        self.cell(0, 10, f"Página {self.page_no()}", align="C")
+
+def exportar_datos_cliente(pdf, cliente):
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(0, 10, "Datos del Cliente", ln=True)
+    pdf.set_font("Helvetica", size=9)
+    claves = ['ID Cliente', 'Nombre y Apellidos', 'DNI', 'Teléfono', 'Fecha de Alta', 'Nº de Formulario']
+    for campo in claves:
+        valor = cliente.get(campo, '')
+        pdf.cell(50, 6, f"{campo}:", ln=0)
+        pdf.cell(0, 6, clean_text(valor), ln=1)
+    pdf.ln(4)
+
 def exportar_descripcion_pdf(pdf, df, titulo_bloque):
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 8, clean_text(titulo_bloque), ln=True)
-    pdf.set_font("Helvetica", size=8)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.cell(0, 10, clean_text(titulo_bloque), ln=True, fill=True)
+    pdf.set_font("Helvetica", size=9)
     if df.empty:
         pdf.cell(0, 6, "Sin datos.", ln=True)
         return
@@ -59,7 +83,7 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
     df['Descripcion'] = df.apply(
         lambda row: (
             f"{row.get('Tipo de prenda', '')}, Talla: {row.get('Talla', '')}, {row.get('Caracteristicas (Color, estampado, material...)', '')}" +
-            (f" | ✔ {row.get('Fecha Vendida') or ''}" if es_bloque_vendido else " | ✖ No vendida")
+            (f" | ✔ {row.get('Fecha Vendida') or ''}" if row.get('Vendida') else " | ✖ No vendida")
         ), axis=1
     )
 
@@ -72,10 +96,11 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
     precios = pd.to_numeric(df.get('Precio', 0), errors='coerce').fillna(0)
     df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
 
-    col_w = [30, 180, 25]
+    col_w = [35, 160, 25]
     headers = ['Recepcion', 'Descripcion', 'Precio']
+    pdf.set_fill_color(225, 225, 225)
     for i, col in enumerate(headers):
-        pdf.cell(col_w[i], 6, clean_text(col), border=1)
+        pdf.cell(col_w[i], 7, clean_text(col), border=1, fill=True)
     pdf.ln()
     for _, row in df.iterrows():
         pdf.cell(col_w[0], 6, clean_text(row['Recepcion']), border=1)
@@ -85,10 +110,9 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         pdf.set_xy(x + col_w[1], y)
         pdf.cell(col_w[2], 6, clean_text(row['Precio_Texto']), border=1)
         pdf.ln()
-    pdf.ln(6)
+    pdf.ln(5)
 
 # El resto del código permanece sin cambios
-
 
 def generar_pdf_prendas(df, titulo):
     pdf = FPDF(orientation="L", unit="mm", format="A4")
