@@ -27,12 +27,12 @@ if not st.session_state.authenticated:
     if st.button("🔓 Entrar"):
         if password == "nirvana2025":
             st.session_state.authenticated = True
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
 
-# Encabezado
+# Encabezado fijo tras autenticación
 st.markdown("""
 <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
 <div style='text-align:center'>
@@ -48,7 +48,12 @@ if st.button("🔄 Sincronizar datos desde Google Sheets"):
     st.rerun()
 
 # Sidebar
-seccion = st.sidebar.selectbox("Secciones", ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"])
+seccion = st.sidebar.selectbox("Secciones", [
+    "Buscar Cliente",
+    "Consultar Stock",
+    "Consultar Vendidos",
+    "Reporte Diario"
+])
 
 # Datos
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
@@ -72,57 +77,75 @@ if seccion == "Buscar Cliente":
     nombre = st.text_input("🔍 Introduce el nombre del cliente")
     if nombre:
         resultados = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
-        st.dataframe(resultados, use_container_width=True)
+        if not resultados.empty:
+            cliente = resultados.iloc[0]
+            st.markdown(f"**Nombre:** {cliente['Nombre y Apellidos']}  ")
+            st.markdown(f"**Teléfono:** {cliente['Teléfono']}  ")
+            st.markdown(f"**DNI:** {cliente['DNI']}  ")
+            st.markdown(f"**Fecha de Alta:** {cliente['Fecha de Alta']}")
 
-elif seccion == "Consultar Stock":
-    stock = df_prendas[df_prendas["Vendida"] == False]
-    st.dataframe(stock, use_container_width=True)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        stock.to_excel(writer, index=False, sheet_name="Stock")
-    st.download_button("⬇️ Descargar Stock (Excel)", output.getvalue(), file_name="stock.xlsx")
+            prendas_cliente = df_prendas[df_prendas["Nº Cliente (Formato C-xxx)"] == cliente["ID Cliente"]]
+            prendas_vendidas = prendas_cliente[prendas_cliente["Vendida"] == True]
+            prendas_stock = prendas_cliente[prendas_cliente["Vendida"] == False]
 
-elif seccion == "Consultar Vendidos":
-    vendidos = df_prendas[df_prendas["Vendida"] == True]
-    st.dataframe(vendidos, use_container_width=True)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        vendidos.to_excel(writer, index=False, sheet_name="Vendidos")
-    st.download_button("⬇️ Descargar Vendidos (Excel)", output.getvalue(), file_name="vendidos.xlsx")
+            st.subheader("Prendas Vendidas")
+            st.dataframe(prendas_vendidas, use_container_width=True)
+            st.subheader("Prendas en Stock")
+            st.dataframe(prendas_stock, use_container_width=True)
 
-elif seccion == "Reporte Diario":
-    fecha = st.date_input("Selecciona una fecha para el reporte", value=datetime.today())
-    fecha_dt = pd.to_datetime(fecha)
-    df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce")
-    vendidos_dia = df_prendas[df_prendas["Vendida"] & (df_prendas["Fecha Vendida"].dt.date == fecha_dt.date())]
-    st.subheader(f"✅ Prendas Vendidas el {fecha_dt.strftime('%d/%m/%Y')} ({len(vendidos_dia)})")
-    st.dataframe(vendidos_dia, use_container_width=True)
+else:
+    if seccion == "Consultar Stock":
+        stock = df_prendas[df_prendas["Vendida"] == False]
+        st.dataframe(stock, use_container_width=True)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            stock.to_excel(writer, index=False, sheet_name="Stock")
+        st.download_button("⬇️ Descargar Stock (Excel)", output.getvalue(), file_name="stock.xlsx")
 
-    if st.button("📄 Descargar PDF del Día"):
-        class PDF(FPDF):
-            def header(self):
-                self.set_font("Helvetica", "B", 12)
-                self.cell(0, 10, f"Ventas del {fecha_dt.strftime('%d/%m/%Y')}", ln=True, align="C")
-                self.ln(5)
+    elif seccion == "Consultar Vendidos":
+        vendidos = df_prendas[df_prendas["Vendida"] == True]
+        st.dataframe(vendidos, use_container_width=True)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            vendidos.to_excel(writer, index=False, sheet_name="Vendidos")
+        st.download_button("⬇️ Descargar Vendidos (Excel)", output.getvalue(), file_name="vendidos.xlsx")
 
-        pdf = PDF()
-        pdf.add_page()
-        pdf.set_font("Helvetica", size=10)
+    elif seccion == "Reporte Diario":
+        fecha = st.date_input("Selecciona una fecha para el reporte", value=datetime.today())
+        fecha_dt = pd.to_datetime(fecha)
+        df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce")
+        vendidos_dia = df_prendas[df_prendas["Vendida"] & (df_prendas["Fecha Vendida"].dt.date == fecha_dt.date())]
 
-        total = 0
-        for _, row in vendidos_dia.iterrows():
-            talla = str(row['Talla']) if pd.notna(row['Talla']) else ""
-            desc = f"{row['Tipo de prenda']}, Talla: {talla}, {row.get('Caracteristicas (Color, estampado, material...)', '')}"
-            precio = pd.to_numeric(row['Precio'], errors='coerce')
-            total += 0 if pd.isna(precio) else precio
-            pdf.cell(0, 10, desc.strip(), ln=True)
+        st.subheader(f"✅ Prendas Vendidas el {fecha_dt.strftime('%d/%m/%Y')} ({len(vendidos_dia)})")
+        st.dataframe(vendidos_dia, use_container_width=True)
 
-        pdf.ln(5)
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(0, 10, f"Total prendas: {len(vendidos_dia)} | Total vendido: {int(total)} €", ln=True)
+        if st.button("📄 Descargar PDF del Día"):
+            class PDF(FPDF):
+                def header(self):
+                    self.set_font("Helvetica", "B", 12)
+                    self.cell(0, 10, f"Ventas del {fecha_dt.strftime('%d/%m/%Y')}", ln=True, align="C")
+                    self.ln(5)
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            pdf.output(tmp.name)
-            tmp.seek(0)
-            st.download_button("📄 Descargar PDF", tmp.read(), file_name=f"ventas_{fecha_dt.strftime('%Y-%m-%d')}.pdf", mime="application/pdf")
-            os.unlink(tmp.name)
+            pdf = PDF()
+            pdf.add_page()
+            pdf.set_font("Helvetica", size=10)
+
+            total = 0
+            for _, row in vendidos_dia.iterrows():
+                tipo = row.get("Tipo de prenda", "")
+                talla = row.get("Talla", "")
+                caracteristicas = row.get("Caracteristicas (Color, estampado, material...)", "")
+                desc = f"{tipo}, Talla: {talla}, {caracteristicas}"
+                precio = pd.to_numeric(row["Precio"], errors='coerce')
+                total += 0 if pd.isna(precio) else precio
+                pdf.cell(0, 10, desc.strip(), ln=True)
+
+            pdf.ln(5)
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.cell(0, 10, f"Total prendas: {len(vendidos_dia)} | Total vendido: {int(total)} €", ln=True)
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                pdf.output(tmp.name)
+                tmp.seek(0)
+                st.download_button("📄 Descargar PDF", tmp.read(), file_name=f"ventas_{fecha_dt.strftime('%Y-%m-%d')}.pdf", mime="application/pdf")
+                os.unlink(tmp.name)
