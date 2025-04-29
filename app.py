@@ -283,68 +283,67 @@ elif seccion == "Consultar Vendidos":
 # --- Generador de Etiquetas ---
 elif seccion == "Generador de Etiquetas":
     st.markdown("### 🏷️ Generador de Etiquetas")
+    hoy = pd.Timestamp.today().normalize()
+    fecha_hoy_str = hoy.strftime("%Y-%m-%d")
 
-    st.markdown("#### 🔹 Generar una sola etiqueta")
+    # Autocompletado directo sin botón
     codigos_disponibles = df_prendas["ID Prenda"].dropna().unique().tolist()
     cod = st.selectbox("Selecciona una prenda (formato P-XXX)", sorted(codigos_disponibles))
 
-    if cod:
+    st.markdown("#### 🔹 Generar una sola etiqueta")
+    if cod and st.button("Generar etiqueta única"):
         prenda = df_prendas[df_prendas["ID Prenda"] == cod]
-        if not prenda.empty and st.button("Generar etiqueta única"):
+        if not prenda.empty:
             st.dataframe(prenda)
             row = prenda.iloc[0]
+
             precio = str(row.get("Precio", ""))
             talla = row.get("Talla", "")
             cliente = row.get("Nº Cliente (Formato C-xxx)", "")
             prenda_id = row.get("ID Prenda", "")
-        
-            pdf = FPDF(orientation='P', unit='mm', format=(50, 30))  # Tamaño etiqueta
+
+            pdf = FPDF(orientation='L', unit='mm', format=(105, 74))  # A7 horizontal
             pdf.add_page()
-            pdf.set_auto_page_break(False)
-            pdf.set_font("Arial", 'B', 12)
-            pdf.set_y(4)
-        
-            pdf.cell(0, 7, f"EUR {precio}", ln=1, align='C')
-            pdf.cell(0, 6, f"Talla {talla}", ln=1, align='C')
-            pdf.set_font("Arial", '', 9)
-            pdf.cell(0, 5, f"Cliente: {cliente}", ln=1, align='C')
-            pdf.cell(0, 5, f"Prenda: {prenda_id}", ln=1, align='C')
-        
+            pdf.set_font("Arial", 'B', 22)
+            pdf.set_xy(0, 20)
+            pdf.cell(105, 12, u"€ " + str(precio), ln=2, align='C')
+            pdf.set_font("Arial", 'B', 20)
+            pdf.cell(105, 10, f"Talla {talla}", ln=2, align='C')
+            pdf.set_font("Arial", '', 14)
+            pdf.cell(105, 8, f"Cliente: {cliente}", ln=2, align='C')
+            pdf.cell(105, 8, f"Prenda: {prenda_id}", ln=2, align='C')
+
             buffer = BytesIO()
             pdf.output(buffer)
             buffer.seek(0)
-            st.download_button("⬇️ Descargar Etiqueta", buffer.getvalue(), file_name=f"etiqueta_{cod}.pdf")
-    
-       # --- Generar etiquetas individuales horizontales para productos vendidos hoy ---
-    st.markdown("#### 🔹 Generar etiquetas individuales (una por hoja horizontal) para productos vendidos hoy")
-    
-    hoy = pd.Timestamp.today().normalize()
+            st.download_button("⬇️ Descargar Etiqueta", buffer.getvalue(), file_name=f"etiqueta_{prenda_id}_{fecha_hoy_str}.pdf")
+
+    st.markdown("#### 🔹 Generar etiquetas de productos vendidos hoy")
     vendidas_hoy = df_prendas[df_prendas["Fecha Vendida"].dt.normalize() == hoy]
-    
     if not vendidas_hoy.empty:
         st.dataframe(vendidas_hoy)
-        if st.button("⬇️ Descargar Etiquetas Horizontales"):
-        pdf = FPDF(orientation='L', unit='mm', format=(105, 74))  # A7 horizontal real
-        pdf.set_auto_page_break(auto=False)
-    
-        for _, row in vendidas_hoy.iterrows():
-            pdf.add_page()
-            precio = str(row.get("Precio", ""))
-            talla = row.get("Talla", "")
-            cliente = row.get("Nº Cliente (Formato C-xxx)", "")
-            prenda = row.get("ID Prenda", "")
-    
-            pdf.set_font("Arial", 'B', 22)
-            pdf.set_xy(0, 20)
-            pdf.cell(105, 12, f"€ {precio}", ln=2, align='C')
-            pdf.set_font("Arial", 'B', 20)
-            pdf.cell(105, 10, f"Talla {talla}", ln=2, align='C')
-    
-            pdf.set_font("Arial", '', 14)
-            pdf.cell(105, 8, f"Cliente: {cliente}", ln=2, align='C')
-            pdf.cell(105, 8, f"Prenda: {prenda}", ln=2, align='C')
-    
-        buffer = BytesIO()
-        pdf.output(buffer)
-        buffer.seek(0)
-        st.download_button("⬇️ Descargar Etiquetas A7 Horizontal", buffer.getvalue(), file_name="etiquetas_horizontales_hoy.pdf")
+
+        if st.button("⬇️ Generar PDF etiquetas del día"):
+            pdf = FPDF(orientation='L', unit='mm', format=(105, 74))  # A7 horizontal
+            pdf.set_auto_page_break(auto=False)
+
+            for _, row in vendidas_hoy.iterrows():
+                precio = str(row.get("Precio", ""))
+                talla = row.get("Talla", "")
+                cliente = row.get("Nº Cliente (Formato C-xxx)", "")
+                prenda_id = row.get("ID Prenda", "")
+
+                pdf.add_page()
+                pdf.set_font("Arial", 'B', 22)
+                pdf.set_xy(0, 20)
+                pdf.cell(105, 12, u"€ " + str(precio), ln=2, align='C')
+                pdf.set_font("Arial", 'B', 20)
+                pdf.cell(105, 10, f"Talla {talla}", ln=2, align='C')
+                pdf.set_font("Arial", '', 14)
+                pdf.cell(105, 8, f"Cliente: {cliente}", ln=2, align='C')
+                pdf.cell(105, 8, f"Prenda: {prenda_id}", ln=2, align='C')
+
+            buffer = BytesIO()
+            pdf.output(buffer)
+            buffer.seek(0)
+            st.download_button("⬇️ Descargar Etiquetas A7 Horizontales", buffer.getvalue(), file_name=f"etiquetas_{fecha_hoy_str}.pdf")
