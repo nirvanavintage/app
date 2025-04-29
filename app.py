@@ -29,12 +29,19 @@ def df_to_pdf(df, titulo, nombre_archivo):
     df = limpiar_df(df)
     df = df.copy()
 
-    if {'Tipo de prenda', 'Talla', 'Características (Color, estampado, material...)'}.issubset(df.columns):
-        df["Descripción"] = (
-            df["Tipo de prenda"].fillna('') + ", Talla: " + df["Talla"].fillna('') +
-            ", " + df["Características (Color, estampado, material...)"].fillna('')
-        )
-        df.drop(["Tipo de prenda", "Talla", "Características (Color, estampado, material...)"], axis=1, inplace=True)
+    columnas_finales = []
+    if {'ID Prenda', 'Nº Cliente (Formato C-xxx)', 'Fecha de recepción', 'Tipo de prenda', 'Talla', 'Características (Color, estampado, material...)', 'Precio', 'Vendida', 'Fecha Vendida'}.issubset(df.columns):
+        df['Cliente'] = df['Nº Cliente (Formato C-xxx)']
+        df['Recepción'] = df['Fecha de recepción']
+        df['Descripción'] = df['Tipo de prenda'].fillna('') + \
+                            ', Talla: ' + df['Talla'].fillna('') + \
+                            ', ' + df['Características (Color, estampado, material...)'].fillna('')
+        df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).map(lambda x: f"{x:,.0f} €".replace(",", "."))
+        df['Vendida'] = df.apply(lambda row: f"✔ {row['Fecha Vendida']}" if str(row['Vendida']).lower() == 'true' else '✖', axis=1)
+        columnas_finales = ['ID Prenda', 'Cliente', 'Recepción', 'Vendida', 'Descripción', 'Precio']
+        df = df[columnas_finales]
+    else:
+        df = df.astype(str).fillna("")
 
     df = df.astype(str).fillna("")
 
@@ -48,9 +55,16 @@ def df_to_pdf(df, titulo, nombre_archivo):
 
     col_widths = {}
     total_width = 277
-    base_width = total_width / len(df.columns)
+    fixed_widths = {
+        'ID Prenda': 25,
+        'Cliente': 25,
+        'Recepción': 28,
+        'Vendida': 32,
+        'Descripción': 120,
+        'Precio': 25
+    }
     for col in df.columns:
-        col_widths[col] = base_width
+        col_widths[col] = fixed_widths.get(col, total_width / len(df.columns))
 
     for col in df.columns:
         pdf.cell(col_widths[col], 6, clean_text(col), border=1, ln=0)
@@ -212,6 +226,10 @@ if seccion == "Buscar Cliente":
                     pdf.cell(0, 8, "📦 Lotes de Entrega", ln=True)
                     pdf.set_font("Helvetica", size=8)
                     exportar_bloque(resumen_lotes, "Lotes")
+
+                    total_ventas = lotes[lotes['Vendida'] == True]['Precio'].sum()
+                    pdf.set_font("Helvetica", "B", 10)
+                    pdf.cell(0, 8, f"💰 Total vendido: {total_ventas:,.0f} €".replace(",", "."), ln=True)
 
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                         pdf.output(tmp.name)
