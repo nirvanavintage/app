@@ -363,3 +363,48 @@ elif seccion == "Generador de Etiquetas":
             )
     else:
         st.info("No hay prendas vendidas hoy para generar etiquetas.")
+# --- Reporte Diario ---
+elif seccion == "Reporte Diario":
+    st.markdown("### 📊 Reporte Diario")
+    hoy = pd.Timestamp.today().normalize()
+    fecha_str = hoy.strftime("%Y-%m-%d")
+
+    # Ventas del día
+    if "Fecha Vendida" in df_prendas.columns:
+        df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors='coerce')
+        ventas_hoy = df_prendas[df_prendas["Fecha Vendida"].dt.normalize() == hoy]
+    else:
+        ventas_hoy = pd.DataFrame()
+
+    # Nuevos clientes del día
+    if "Marca temporal" in df_clientes.columns:
+        df_clientes["Marca temporal"] = pd.to_datetime(df_clientes["Marca temporal"], errors='coerce')
+        nuevos_clientes = df_clientes[df_clientes["Marca temporal"].dt.normalize() == hoy]
+    else:
+        nuevos_clientes = pd.DataFrame()
+
+    # Cálculos económicos
+    total_ganado = ventas_hoy["Precio"].sum() if not ventas_hoy.empty else 0
+    comision_clientes = ventas_hoy["Precio"].apply(lambda x: x * 0.3 if pd.notna(x) else 0).sum()
+    total_neto = total_ganado - comision_clientes
+
+    # Mostrar resumen
+    st.subheader(f"🧾 Resumen del {fecha_str}")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total ganado (€)", f"{total_ganado:.2f}")
+    col2.metric("Comisión clientes (30%)", f"{comision_clientes:.2f}")
+    col3.metric("Total neto (€)", f"{total_neto:.2f}")
+
+    st.markdown("#### 🧍 Nuevos Clientes del Día")
+    if not nuevos_clientes.empty:
+        st.dataframe(nuevos_clientes, use_container_width=True)
+    else:
+        st.info("No hay nuevos clientes registrados hoy.")
+
+    st.markdown("#### 🛍️ Ventas del Día")
+    if not ventas_hoy.empty:
+        columnas_mostrar = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Tipo de prenda", "Talla", "Precio", "Fecha Vendida"]
+        st.dataframe(ventas_hoy[columnas_mostrar], use_container_width=True)
+    else:
+        st.info("No hay ventas registradas hoy.")
+
