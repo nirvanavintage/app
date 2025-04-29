@@ -29,7 +29,6 @@ def df_to_pdf(df, titulo, nombre_archivo):
     df = limpiar_df(df)
     df = df.copy()
 
-    # Fusionar columnas para hacerlo más compacto
     if {'Tipo de prenda', 'Talla', 'Características (Color, estampado, material...)'}.issubset(df.columns):
         df["Descripción"] = (
             df["Tipo de prenda"].fillna('') + ", Talla: " + df["Talla"].fillna('') +
@@ -42,25 +41,21 @@ def df_to_pdf(df, titulo, nombre_archivo):
     pdf = FPDF(orientation="L", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    pdf.set_font("Helvetica", size=12)
+    pdf.set_font("Helvetica", "B", 14)
     pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
     pdf.ln(5)
-
     pdf.set_font("Helvetica", size=8)
-    col_widths = {}
-    total_width = 277  # A4 landscape width minus margins
 
-    # Calcular anchos proporcionales
+    col_widths = {}
+    total_width = 277
     base_width = total_width / len(df.columns)
     for col in df.columns:
         col_widths[col] = base_width
 
-    # Cabecera
     for col in df.columns:
         pdf.cell(col_widths[col], 6, clean_text(col), border=1, ln=0)
     pdf.ln()
 
-    # Filas
     for _, row in df.iterrows():
         y_before = pdf.get_y()
         max_y = y_before
@@ -116,8 +111,7 @@ menu_options = [
     "Consultar Stock",
     "Consultar Vendidos",
     "Generar Avisos de Hoy",
-    "Reporte Diario",
-    "Informe Cliente por Entregas"
+    "Reporte Diario"
 ]
 
 seccion = st.sidebar.selectbox("🪄 Secciones disponibles:", menu_options, index=0)
@@ -136,7 +130,7 @@ try:
     df_prendas = cargar("Prendas")
     df_clientes = cargar("Clientes")
 except Exception:
-    st.error("❌ No se pudieron cargar los datos. Revisa la conexión o los permisos de la hoja Google Sheets.")
+    st.error("❌ No se pudieron cargar los datos. Revisa conexión o permisos de la hoja.")
     st.stop()
 
 if "Vendida" in df_prendas.columns:
@@ -161,6 +155,69 @@ if seccion == "Buscar Cliente":
             prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"].isin(ids)]
             st.subheader("👜 Prendas del cliente")
             st.dataframe(prendas_cliente, use_container_width=True)
+            prendas_ventas = prendas_cliente[prendas_cliente['Vendida'] == True]
+            if not prendas_ventas.empty:
+                if st.button("📄 PDF Informe del Cliente"):
+                    fecha = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+                    nombre_cliente = clientes_match.iloc[0]["Nombre y Apellidos"]
+                    idc = clientes_match.iloc[0]["ID Cliente"]
+                    titulo = f"Informe del cliente {idc} – {nombre_cliente}"
+
+                    prendas_en_stock = prendas_cliente[prendas_cliente['Vendida'] != True]
+                    lotes = prendas_cliente.copy()
+                    lotes['Precio'] = pd.to_numeric(lotes['Precio'], errors='coerce').fillna(0)
+                    lotes['Fecha de recepción'] = pd.to_datetime(lotes['Fecha de recepción'], errors='coerce')
+                    resumen_lotes = lotes.groupby('Fecha de recepción').agg(
+                        Total_Prendas=('ID Prenda', 'count'),
+                        Valor_Total=('Precio', 'sum')
+                    ).reset_index()
+                    resumen_lotes = resumen_lotes.sort_values('Fecha de recepción', ascending=False)
+                    resumen_lotes['Fecha de recepción'] = resumen_lotes['Fecha de recepción'].dt.strftime('%d/%m/%Y')
+                    resumen_lotes['Valor_Total'] = resumen_lotes['Valor_Total'].apply(lambda x: f"{x:,.0f} €".replace(",", "."))
+
+                    pdf = FPDF(orientation="L", unit="mm", format="A4")
+                    pdf.set_auto_page_break(auto=True, margin=15)
+                    pdf.add_page()
+                    pdf.set_font("Helvetica", "B", 14)
+                    pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
+                    pdf.ln(4)
+                    pdf.set_font("Helvetica", size=8)
+
+                    def exportar_bloque(df, titulo):
+                        if df.empty:
+                            pdf.cell(0, 6, "Sin datos.", ln=True)
+                        else:
+                            df = limpiar_df(df).astype(str).fillna("")
+                            col_w = pdf.w / (len(df.columns) + 1)
+                            for col in df.columns:
+                                pdf.cell(col_w, 6, clean_text(col), border=1)
+                            pdf.ln()
+                            for _, row in df.iterrows():
+                                for item in row:
+                                    pdf.cell(col_w, 5, clean_text(item), border=1)
+                                pdf.ln()
+                        pdf.ln(6)
+
+                    pdf.set_font("Helvetica", "B", 10)
+                    pdf.cell(0, 8, "🟢 Prendas Vendidas", ln=True)
+                    pdf.set_font("Helvetica", size=8)
+                    exportar_bloque(prendas_ventas, "Vendidas")
+
+                    pdf.set_font("Helvetica", "B", 10)
+                    pdf.cell(0, 8, "🟡 Prendas en stock", ln=True)
+                    pdf.set_font("Helvetica", size=8)
+                    exportar_bloque(prendas_en_stock, "En stock")
+
+                    pdf.set_font("Helvetica", "B", 10)
+                    pdf.cell(0, 8, "📦 Lotes de Entrega", ln=True)
+                    pdf.set_font("Helvetica", size=8)
+                    exportar_bloque(resumen_lotes, "Lotes")
+
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                        pdf.output(tmp.name)
+                        tmp.seek(0)
+                        st.download_button("📄 Descargar PDF Informe Cliente", tmp.read(), file_name=f"cliente_{idc}_{fecha}.pdf", mime="application/pdf")
+                        os.unlink(tmp.name)
 
 elif seccion == "Consultar Stock":
     st.subheader("🍋 Stock Actual")
@@ -179,35 +236,14 @@ elif seccion == "Generar Avisos de Hoy":
     st.dataframe(avisos_hoy, use_container_width=True)
 
 elif seccion == "Reporte Diario":
-    hoy = pd.Timestamp.today().normalize()
-    vendidos_hoy = prendas_limpio[df_prendas["Vendida"] & (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.normalize() == hoy)]
-    st.subheader(f"✅ Prendas Vendidas hoy {hoy.date()} ({len(vendidos_hoy)})")
-    st.dataframe(vendidos_hoy, use_container_width=True)
+    fecha_seleccionada = st.date_input("Selecciona una fecha para el reporte", value=datetime.today().date())
+    fecha_dt = pd.to_datetime(fecha_seleccionada)
+    vendidos_fecha = prendas_limpio[df_prendas["Vendida"] & (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.normalize() == fecha_dt)]
+    st.subheader(f"✅ Prendas Vendidas el {fecha_dt.date()} ({len(vendidos_fecha)})")
+    st.dataframe(vendidos_fecha, use_container_width=True)
 
-    if st.button("📄 PDF Ventas de Hoy"):
-        fecha = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        titulo = f"Ventas del día {datetime.today().date().isoformat()}"
-        df_to_pdf(vendidos_hoy, titulo, f"ventas_{fecha}.pdf")
-
-elif seccion == "Informe Cliente por Entregas":
-    nombre = st.text_input("Nombre cliente")
-    if st.button("Buscar entregas") and nombre:
-        cliente = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
-        if cliente.empty:
-            st.warning("No se encontró el cliente.")
-        else:
-            idc = cliente.iloc[0]["ID Cliente"]
-            nombre_cliente = cliente.iloc[0]["Nombre y Apellidos"]
-            prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"] == idc]
-            st.dataframe(prendas_cliente, use_container_width=True)
-            if st.button("📄 PDF Informe Cliente"):
-                prendas_ventas = prendas_cliente[prendas_cliente['Vendida'] == True]
-                if prendas_ventas.empty:
-                    st.warning("Este cliente no tiene prendas vendidas para mostrar en el informe.")
-                else:
-                    fecha = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-                    titulo = f"Informe de ventas – Cliente {idc} – {nombre_cliente}"
-                    df_to_pdf(prendas_ventas, titulo, f"cliente_{idc}_{fecha}.pdf")
-
-st.markdown("---")
-st.markdown("<div style='text-align:center'>❤️ Nirvana Vintage 2025</div>", unsafe_allow_html=True)
+    if st.button("📄 PDF Ventas de la Fecha"):
+        fecha_str = fecha_dt.strftime("%Y-%m-%d")
+        hora_str = datetime.now().strftime("%H%M%S")
+        titulo = f"Ventas del día {fecha_str}"
+        df_to_pdf(vendidos_fecha, titulo, f"ventas_{fecha_str}_{hora_str}.pdf")
