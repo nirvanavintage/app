@@ -67,7 +67,21 @@ h1 {
 """, unsafe_allow_html=True)
 
 # 🔄 Sincronizar
-st.button("🔄 Sincronizar datos desde Google Sheets")
+if st.button("🔄 Sincronizar datos desde Google Sheets"):
+    st.cache_data.clear()
+    st.rerun()
+
+@st.cache_data(show_spinner=False)
+def cargar(sheet):
+    return pd.read_csv(URL_BASE + sheet)
+
+try:
+    df_prendas = cargar("Prendas")
+    df_clientes = cargar("Clientes")
+except:
+    st.error("❌ No se pudieron cargar los datos.")
+    st.stop()
+
 
 # Sección inicializada para evitar NameError
 if "seccion" not in st.session_state:
@@ -105,16 +119,6 @@ seccion = st.session_state.seccion
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 
-@st.cache_data(show_spinner=False)
-def cargar(sheet):
-    return pd.read_csv(URL_BASE + sheet)
-
-try:
-    df_prendas = cargar("Prendas")
-    df_clientes = cargar("Clientes")
-except:
-    st.error("❌ No se pudieron cargar los datos.")
-    st.stop()
 
 # Conversión
 df_prendas["Vendida"] = df_prendas["Vendida"].astype(str).str.lower().isin(["true", "1", "yes", "x"])
