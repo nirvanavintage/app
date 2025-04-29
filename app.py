@@ -593,8 +593,8 @@ elif seccion == "Avisos":
     # --- NUEVOS CLIENTES DEL DÍA ---
     st.subheader("🆕 Nuevos Clientes con Ficha")
 
-    df_clientes["Marca temporal"] = pd.to_datetime(df_clientes.get("Marca temporal", pd.NaT), errors="coerce")
-    nuevos = df_clientes[df_clientes["Marca temporal"].dt.normalize() == pd.Timestamp(fecha_objetivo)]
+    df_clientes["Fecha de Alta"] = pd.to_datetime(df_clientes.get("Fecha de Alta", pd.NaT), errors="coerce")
+    nuevos = df_clientes[df_clientes["Fecha de Alta"].dt.normalize() == pd.Timestamp(fecha_objetivo)]
 
     if not nuevos.empty:
         for _, cliente in nuevos.iterrows():
