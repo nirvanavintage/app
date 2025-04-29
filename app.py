@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
-from fpdf import FPDF
+import pdfkit
+import tempfile
+import os
+import datetime
 from datetime import datetime, timedelta
 
 # =====================
@@ -13,11 +16,54 @@ HIDE_COLS_PATTERN = [  # nombres exactos o parciales a descartar
     "Merged Doc ID", "Merged Doc URL", "Link to merged Doc", "Document Merge Status"  # columnas P‑S
 ]
 
-# Utilidad para ocultar columnas no deseadas
+# Configuración para PDF
+WKHTML_PATH = "/usr/bin/wkhtmltopdf"  # Ruta por defecto en Streamlit Cloud
+pdfkit_config = pdfkit.configuration(wkhtmltopdf=WKHTML_PATH)
 
+# Utilidad para ocultar columnas no deseadas
 def limpiar_df(df: pd.DataFrame) -> pd.DataFrame:
     cols_a_quitar = [c for c in df.columns for pat in HIDE_COLS_PATTERN if pat.lower() in c.lower()]
     return df.drop(columns=cols_a_quitar, errors="ignore")
+
+# Función para generar PDFs bonitos
+def df_to_pdf(df, titulo, nombre_archivo):
+    # quitamos la columna A y las P-S si siguen presentes
+    cols_mostrar = [c for c in df.columns if c not in [
+        "Marca temporal",
+        *df.columns[df.columns.str.startswith("Merged Doc")]
+    ]]
+    df = df[cols_mostrar]
+    
+    # estilo CSS simple
+    css = """
+    <style>
+      body { font-family: Arial, sans-serif; }
+      h2   { text-align:center; }
+      table { border-collapse:collapse; width:100%; font-size:10px; }
+      th, td { border:1px solid #666; padding:4px; }
+      th { background:#eee; }
+    </style>
+    """
+    html = f"<h2>{titulo}</h2>" + df.to_html(index=False)
+    full_html = f"<html><head>{css}</head><body>{html}</body></html>"
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        pdfkit.from_string(full_html, tmp.name,
+                          configuration=pdfkit_config,
+                          options={"page-size": "A4",
+                                  "orientation": "Landscape",
+                                  "margin-top": "8mm",
+                                  "margin-bottom": "8mm",
+                                  "margin-left": "8mm",
+                                  "margin-right": "8mm"})
+        tmp.seek(0)
+        st.download_button(
+            "📄 Descargar PDF",
+            tmp.read(),
+            file_name=nombre_archivo,
+            mime="application/pdf"
+        )
+        os.unlink(tmp.name)
 
 # ==========
 # Encabezado
@@ -60,17 +106,48 @@ prendas_limpio = limpiar_df(df_prendas)
 # Secciones (menú)
 # ================
 
-seccion = st.sidebar.radio(
+st.sidebar.markdown("""
+<style>
+.sidebar-button {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    margin: 6px 0;
+    background-color: #f0f2f6;
+    color: #333;
+    text-align: left;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+.sidebar-button:hover {
+    background-color: #e0e2e6;
+    color: #000;
+}
+.sidebar-button.active {
+    background-color: #4a8bfc;
+    color: white;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Definir las opciones del menú
+menu_options = [
+    "Buscar Cliente",
+    "Consultar Stock",
+    "Consultar Vendidos",
+    "Generar Avisos de Hoy",
+    "Reporte Diario",
+    "Informe Cliente por Entregas"
+]
+
+# Mostrar el menú como botones
+seccion = st.sidebar.selectbox(
     "🪄 Secciones",
-    [
-        "Buscar Cliente",
-        "Consultar Stock",
-        "Consultar Vendidos",
-        "Generar Avisos de Hoy",
-        "Reporte Diario",
-        "Informe Cliente por Entregas",
-    ],
-    index=0,
+    menu_options,
+    format_func=lambda x: f"▸ {x}",
+    index=0
 )
 
 # --------------
@@ -134,39 +211,25 @@ elif seccion == "Reporte Diario":
     st.dataframe(stock, use_container_width=True)
 
     if st.button("📄 PDF Reporte Diario"):
-        pdf = FPDF(orientation="L")
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        pdf.cell(0, 10, f"Reporte Diario - {hoy.date()}", ln=True, align="C")
-        pdf.ln(4)
-
-        def tabla(df, titulo):
-            pdf.set_font("Arial", style="B", size=11)
-            pdf.cell(0, 8, titulo, ln=True)
-            pdf.set_font("Arial", size=9)
-            col_w = pdf.w / (len(df.columns) + 1)
-            for col in df.columns:
-                pdf.cell(col_w, 6, col, border=1)
-            pdf.ln()
-            for _, row in df.iterrows():
-                for item in row:
-                    pdf.cell(col_w, 5, str(item), border=1)
-                pdf.ln()
-            pdf.ln(4)
-
-        tabla(avisos_hoy, "Avisos de Hoy")
-        tabla(vendidos_hoy, "Ventas de Hoy")
-        tabla(stock, "Stock Actual")
-
-        fname = f"reporte_{hoy.strftime('%Y-%m-%d_%H%M%S')}.pdf"
-        pdf.output(fname)
-        with open(fname, "rb") as f:
-            st.download_button("Descargar", f, file_name=fname, mime="application/pdf")
+        fecha = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        titulo = f"Reporte Diario – {datetime.date.today().isoformat()}"
+        
+        # Creamos un DataFrame combinado con separadores
+        df_full = pd.concat([
+            pd.DataFrame({"__SECCIÓN__": ["Avisos de Hoy"]}),
+            avisos_hoy,
+            pd.DataFrame({"__SECCIÓN__": ["Ventas de Hoy"]}),
+            vendidos_hoy,
+            pd.DataFrame({"__SECCIÓN__": ["Stock Actual"]}),
+            stock
+        ])
+        
+        df_to_pdf(df_full, titulo, f"reporte_{fecha}.pdf")
 
 # ---------------------------------
 # Informe Cliente por Entregas (Lote)
 # ---------------------------------
-else:
+elif seccion == "Informe Cliente por Entregas":
     nombre = st.text_input("Nombre cliente")
     if st.button("Buscar entregas") and nombre:
         cliente = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
@@ -174,29 +237,14 @@ else:
             st.warning("No se encontró el cliente.")
         else:
             idc = cliente.iloc[0]["ID Cliente"]
+            nombre_cliente = cliente.iloc[0]["Nombre y Apellidos"]
             prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"] == idc]
             st.dataframe(prendas_cliente, use_container_width=True)
+            
             if st.button("📄 PDF Informe Cliente"):
-                pdf = FPDF(orientation="L")
-                pdf.add_page()
-                pdf.set_font("Arial", style="B", size=12)
-                pdf.cell(0, 8, f"Informe Cliente – {cliente.iloc[0]['Nombre y Apellidos']} ({idc})", ln=True)
-                pdf.set_font("Arial", size=9)
-                pdf.ln(4)
-
-                col_w = pdf.w / (len(prendas_cliente.columns) + 1)
-                for col in prendas_cliente.columns:
-                    pdf.cell(col_w, 6, col, border=1)
-                pdf.ln()
-                for _, row in prendas_cliente.iterrows():
-                    for item in row:
-                        pdf.cell(col_w, 5, str(item), border=1)
-                    pdf.ln()
-
-                fname = f"informe_{idc}_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.pdf"
-                pdf.output(fname)
-                with open(fname, "rb") as f:
-                    st.download_button("Descargar", f, file_name=fname, mime="application/pdf")
+                fecha = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+                titulo = f"Cliente {idc} – {nombre_cliente}"
+                df_to_pdf(prendas_cliente, titulo, f"cliente_{idc}_{fecha}.pdf")
 
 st.markdown("---")
 st.markdown("<div style='text-align:center'>❤️ Nirvana Vintage 2025</div>", unsafe_allow_html=True)
