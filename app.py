@@ -363,64 +363,60 @@ elif seccion == "Generador de Etiquetas":
             )
     else:
         st.info("No hay prendas vendidas hoy para generar etiquetas.")
-# --- Reporte Diario ---
 elif seccion == "Reporte Diario":
-    st.markdown("### 📊 Reporte Diario")
+    st.header("📊 Reporte Diario")
 
-    # Selector de fecha
-    fecha_reporte = st.date_input("Selecciona una fecha para el reporte", pd.Timestamp.today()).strftime("%Y-%m-%d")
-    fecha_reporte_dt = pd.to_datetime(fecha_reporte)
+    # Selección de fecha
+    fecha_reporte = st.date_input("Selecciona la fecha del reporte", value=pd.Timestamp.today().date())
 
-    # --- Filtrar ventas ---
-    df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors='coerce')
-    ventas = df_prendas[df_prendas["Fecha Vendida"].dt.normalize() == fecha_reporte_dt]
+    # Filtrar ventas por fecha exacta
+    ventas = df_prendas[df_prendas["Fecha Vendida"].dt.date == fecha_reporte].copy()
 
-    # --- Filtrar nuevos clientes ---
-    df_clientes["Marca temporal"] = pd.to_datetime(df_clientes["Marca temporal"], errors='coerce')
-    nuevos = df_clientes[df_clientes["Marca temporal"].dt.normalize() == fecha_reporte_dt]
-
-    # --- Cálculos ---
-    total = ventas["Precio"].sum()
-    comisiones = ventas["Precio"].apply(lambda x: x * 0.3 if pd.notna(x) else 0).sum()
-    neto = total - comisiones
-
-    st.subheader(f"🧾 Resumen del {fecha_reporte}")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total ganado (€)", f"{total:.2f}")
-    col2.metric("Comisión clientes (30%)", f"{comisiones:.2f}")
-    col3.metric("Total neto (€)", f"{neto:.2f}")
-
-    st.markdown("#### 🧍 Nuevos Clientes del Día")
-    if not nuevos.empty:
-        st.dataframe(nuevos, use_container_width=True)
-    else:
-        st.info("No hay nuevos clientes registrados ese día.")
-
-    st.markdown("#### 🛍️ Ventas del Día")
-    columnas_mostrar = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Tipo de prenda", "Talla", "Precio", "Fecha Vendida"]
     if not ventas.empty:
-        st.dataframe(ventas[columnas_mostrar], use_container_width=True)
-    else:
-        st.info("No hay ventas registradas ese día.")
+        # Cálculo comisión individual
+        ventas["Comisión"] = ventas["Precio"] * 0.3
+        ventas["Neto"] = ventas["Precio"] - ventas["Comisión"]
 
-    # --- Exportar Excel ---
+        total = ventas["Precio"].sum()
+        comisiones = ventas["Comisión"].sum()
+        neto = ventas["Neto"].sum()
+    else:
+        total = comisiones = neto = 0.0
+
+    # Nuevos clientes del día
+    nuevos_clientes = df_clientes[df_clientes["Marca temporal"].dt.date == fecha_reporte]
+
+    # Mostrar métricas
+    col1, col2, col3 = st.columns(3)
+    col1.metric("💰 Total ganado (€)", f"{total:.2f}")
+    col2.metric("📉 Comisión clientes (30%)", f"{comisiones:.2f}")
+    col3.metric("📈 Total neto (€)", f"{neto:.2f}")
+
+    # Mostrar nuevos clientes
+    st.subheader("🧍 Nuevos Clientes del Día")
+    if nuevos_clientes.empty:
+        st.info("No hay nuevos clientes registrados ese día.")
+    else:
+        st.dataframe(nuevos_clientes)
+
+    # Mostrar ventas
+    st.subheader("🛍️ Ventas del Día")
+    columnas_mostrar = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Tipo de prenda", "Talla", "Precio", "Comisión", "Neto", "Fecha Vendida"]
+    st.dataframe(ventas[columnas_mostrar])
+
+    # Excel
     if st.button("⬇️ Descargar Reporte en Excel"):
         buffer = BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            ventas[columnas_mostrar].to_excel(writer, sheet_name="Ventas", index=False)
-            nuevos.to_excel(writer, sheet_name="Nuevos Clientes", index=False)
-            resumen = pd.DataFrame({
-                "Total Ganado (€)": [total],
-                "Comisión Clientes (€)": [comisiones],
-                "Total Neto (€)": [neto]
-            })
-            resumen.to_excel(writer, sheet_name="Resumen", index=False)
+        with pd.ExcelWriter(buffer) as writer:
+            ventas[columnas_mostrar].to_excel(writer, index=False, sheet_name="Ventas")
+            if not nuevos_clientes.empty:
+                nuevos_clientes.to_excel(writer, index=False, sheet_name="Nuevos Clientes")
         buffer.seek(0)
-        st.download_button("📥 Descargar Excel", buffer, file_name=f"reporte_diario_{fecha_reporte}.xlsx")
+        st.download_button("Descargar Excel", buffer, file_name=f"reporte_{fecha_reporte}.xlsx")
 
-    # --- Exportar PDF ---
+    # PDF
     if st.button("🖨️ Descargar Reporte en PDF"):
-        pdf = FPDF(orientation='P', unit='mm', format='A4')
+        pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(0, 10, texto_fpdf(f"Reporte Diario - {fecha_reporte}"), ln=True, align='C')
@@ -430,26 +426,30 @@ elif seccion == "Reporte Diario":
         pdf.cell(0, 8, texto_fpdf(f"Total ganado: EUR {total:.2f}"), ln=True)
         pdf.cell(0, 8, texto_fpdf(f"Comisión clientes (30%): EUR {comisiones:.2f}"), ln=True)
         pdf.cell(0, 8, texto_fpdf(f"Total neto: EUR {neto:.2f}"), ln=True)
+        pdf.ln(5)
 
-        if not ventas.empty:
-            pdf.ln(10)
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, texto_fpdf("Ventas del Día"), ln=True)
-            pdf.set_font("Arial", '', 10)
-            for _, row in ventas[columnas_mostrar].iterrows():
-                texto = f"{row['ID Prenda']} | {row['Tipo de prenda']} | Talla {row['Talla']} | EUR {row['Precio']} | Cliente {row['Nº Cliente (Formato C-xxx)']}"
-                pdf.multi_cell(0, 7, texto_fpdf(texto))
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 8, texto_fpdf("Ventas del Día"), ln=True)
+        pdf.set_font("Arial", '', 10)
 
-        if not nuevos.empty:
-            pdf.ln(10)
+        for _, row in ventas.iterrows():
+            texto = (
+                f"{row['ID Prenda']} - Cliente: {row['Nº Cliente (Formato C-xxx)']} - "
+                f"{row['Tipo de prenda']}, Talla {row['Talla']} | Precio: EUR {row['Precio']} | "
+                f"Comisión: EUR {row['Comisión']:.2f} | Neto: EUR {row['Neto']:.2f}"
+            )
+            pdf.multi_cell(0, 8, texto_fpdf(texto))
+
+        if not nuevos_clientes.empty:
+            pdf.ln(5)
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, texto_fpdf("Nuevos Clientes"), ln=True)
+            pdf.cell(0, 8, texto_fpdf("Nuevos Clientes del Día"), ln=True)
             pdf.set_font("Arial", '', 10)
-            for _, row in nuevos.iterrows():
-                texto = f"{row['Nº Cliente (Formato C-xxx)']} | {row.get('Nombre', '')} {row.get('Apellidos', '')}"
-                pdf.multi_cell(0, 7, texto_fpdf(texto))
+            for _, row in nuevos_clientes.iterrows():
+                texto = f"{row['Nº Cliente (Formato C-xxx)']} - {row.get('Nombre', '')}"
+                pdf.cell(0, 8, texto_fpdf(texto), ln=True)
 
         buffer = BytesIO()
         pdf.output(buffer)
         buffer.seek(0)
-        st.download_button("📥 Descargar PDF", buffer.getvalue(), file_name=f"reporte_diario_{fecha_reporte}.pdf")
+        st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name=f"reporte_{fecha_reporte}.pdf")
