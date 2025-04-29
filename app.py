@@ -128,35 +128,37 @@ if seccion == "Buscar Cliente":
                 buffer.seek(0)
                 st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
 # --- Consultar Stock ---
+# --- Consultar Stock ---
 elif seccion == "Consultar Stock":
     st.header("📦 Prendas en Stock")
 
     stock = df_prendas[df_prendas["Vendida"] != True].copy()
 
     # Crear columna de descripción agrupada
-    stock["Descripcion"] = stock.apply(lambda row: f"{row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')} | {row.get('Caracteristicas (Color, estampado, material...)', '')}", axis=1)
+    stock["Descripción"] = stock.apply(
+        lambda row: f"{row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')} | {row.get('Caracteristicas (Color, estampado, material...)', '')}",
+        axis=1
+    )
 
-    # Filtros disponibles
     columnas_filtro = [col for col in ["Talla", "Tipo de prenda", "Marca", "¿Donación o devolución?"] if col in stock.columns]
 
     with st.expander("⚙️ Filtros"):
         for columna in columnas_filtro:
-            opciones = sorted(stock[columna].dropna().unique().tolist())
-            seleccion = st.multiselect(f"Filtrar por {columna}", opciones, default=opciones)
-            stock = stock[stock[columna].isin(seleccion)]
+            opciones = stock[columna].dropna().unique().tolist()
+            seleccion = st.multiselect(f"Filtrar por {columna}", opciones)
+            if seleccion:
+                stock = stock[stock[columna].isin(seleccion)]
 
-    columnas_visibles = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Fecha de recepción", "Precio", "Descripcion"]
+    columnas_visibles = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Fecha de recepción", "Precio", "Descripción"]
     st.dataframe(stock[columnas_visibles], use_container_width=True)
 
-    # Excel descargable limpio
     if st.button("⬇️ Descargar Excel Stock"):
         buffer = BytesIO()
-        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+        with pd.ExcelWriter(buffer) as writer:
             stock[columnas_visibles].to_excel(writer, index=False, sheet_name="Stock")
         buffer.seek(0)
         st.download_button("Descargar Stock Excel", buffer, file_name="stock_filtrado.xlsx")
 
-    # PDF descargable limpio
     if st.button("🖨️ Descargar PDF Stock"):
         pdf = FPDF(orientation='L', unit='mm', format='A4')
         pdf.add_page()
@@ -166,14 +168,14 @@ elif seccion == "Consultar Stock":
 
         pdf.set_font("Arial", 'B', 10)
         for col in columnas_visibles:
-            pdf.cell(60 if col == "Descripcion" else 40, 8, texto_fpdf(col), border=1)
+            pdf.cell(60 if col == "Descripción" else 40, 8, texto_fpdf(col), border=1)
         pdf.ln()
 
         pdf.set_font("Arial", '', 9)
         for _, row in stock[columnas_visibles].iterrows():
             for col in columnas_visibles:
                 valor = str(row[col]) if pd.notna(row[col]) else ""
-                pdf.cell(60 if col == "Descripcion" else 40, 8, texto_fpdf(valor), border=1)
+                pdf.cell(60 if col == "Descripción" else 40, 8, texto_fpdf(valor), border=1)
             pdf.ln()
 
         buffer = BytesIO()
