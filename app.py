@@ -97,7 +97,6 @@ elif seccion == "Buscar Cliente":
         coincidencias = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False)]
         st.dataframe(coincidencias)
 
-
 # SECCIÓN: Generador de Etiquetas
 if seccion == "Generador de Etiquetas":
     st.markdown("### 🏷️ Generador de Etiquetas")
@@ -143,4 +142,3 @@ if seccion == "Generador de Etiquetas":
             pdf.output(buffer)
             st.download_button("⬇️ Descargar Todas las Etiquetas", buffer.getvalue(), file_name="etiquetas_vendidas_hoy.pdf")
 
-# Fin
