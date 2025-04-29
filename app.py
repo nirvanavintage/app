@@ -77,10 +77,11 @@ h1 {
 """, unsafe_allow_html=True)
 
 avisos_url = "https://app-nirvana.streamlit.app/?seccion=avisos"
-st.markdown(f"""<div style='position: fixed; top: 20px; right: 25px; z-index:9999'>
+st.markdown(f"""
+<div style='position: fixed; top: 20px; right: 25px; z-index:9999'>
     <a href="{avisos_url}" target="_blank" style='padding: 8px 18px; background-color: #ffe082; color: black; border-radius: 10px; font-weight: bold; text-decoration: none; border: 1px solid #aaa;'>📩 Avisos</a>
-</div>""", unsafe_allow_html=True)
-
+</div>
+""", unsafe_allow_html=True)
 
 # --- URL construida dinámicamente desde el ID guardado ---
 SHEET_ID = st.session_state.get("sheet_id", "")
