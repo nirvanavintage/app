@@ -544,3 +544,63 @@ elif seccion == "Reporte Diario":
         pdf.output(buffer)
         buffer.seek(0)
         st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name=f"reporte_diario_{hoy.date()}.pdf")
+
+elif seccion == "📩 Avisos":
+    st.header("📩 Avisos a Clientes")
+
+    fecha_objetivo = st.date_input("Selecciona la fecha para los avisos", pd.Timestamp.today())
+
+    # --- AVISOS POR FECHA DE AVISO ---
+    st.subheader("📆 Prendas con Aviso en la Fecha Seleccionada")
+
+    df_aviso = df_prendas.copy()
+    df_aviso["Fecha Aviso"] = pd.to_datetime(df_aviso["Fecha Aviso"], errors="coerce")
+    df_aviso_filtrado = df_aviso[df_aviso["Fecha Aviso"].dt.normalize() == pd.Timestamp(fecha_objetivo)]
+
+    if not df_aviso_filtrado.empty:
+        for _, row in df_aviso_filtrado.iterrows():
+            id_cliente = row.get("Nº Cliente (Formato C-xxx)", "")
+            cliente_info = df_clientes[df_clientes["ID Cliente"] == id_cliente].squeeze()
+            nombre = cliente_info.get("Nombre y Apellidos", "Desconocido")
+            telefono = cliente_info.get("Teléfono", "No disponible")
+
+            st.markdown(f"""
+            🔔 **Cliente:** {nombre}  
+            📞 **Teléfono:** {telefono}  
+            👕 **Prenda:** {row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')}
+
+            💬 **Mensaje sugerido:**  
+            _Hola {nombre}, tu prenda está a punto de caducar. ¿Deseas donarla o pasar a recogerla?_
+            """)
+            st.divider()
+    else:
+        st.info("No hay prendas con aviso para esa fecha.")
+
+    # --- NUEVOS CLIENTES DEL DÍA ---
+    st.subheader("🆕 Nuevos Clientes con Ficha")
+
+    df_clientes["Marca temporal"] = pd.to_datetime(df_clientes.get("Marca temporal", pd.NaT), errors="coerce")
+    nuevos = df_clientes[df_clientes["Marca temporal"].dt.normalize() == pd.Timestamp(fecha_objetivo)]
+
+    if not nuevos.empty:
+        for _, cliente in nuevos.iterrows():
+            idc = cliente["ID Cliente"]
+            prendas_cliente = df_prendas[df_prendas["Nº Cliente (Formato C-xxx)"] == idc]
+
+            st.markdown(f"""
+            👤 **Nombre:** {cliente.get("Nombre y Apellidos", "Sin nombre")}  
+            📞 **Teléfono:** {cliente.get("Teléfono", "Sin número")}
+
+            💬 **Mensaje sugerido:**  
+            _Hola {cliente.get("Nombre y Apellidos", "")}, gracias por traer tus prendas a Nirvana. Aquí tienes tu ficha con lo que has entregado._
+
+            **Resumen de prendas entregadas:**
+            """)
+
+            for _, prenda in prendas_cliente.iterrows():
+                st.markdown(f"- {prenda.get('Tipo de prenda', '')}, Talla {prenda.get('Talla', '')}, recibida el {prenda.get('Fecha de recepción', '')}")
+
+            st.divider()
+    else:
+        st.info("No hay nuevos clientes registrados ese día.")
+
