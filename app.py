@@ -423,13 +423,17 @@ elif seccion == "Reporte Diario":
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, f"Reporte Diario - {hoy.date()}", ln=True, align='C')
+        titulo = f"Reporte Diario - {hoy.date()}"
+        pdf.cell(0, 10, titulo.encode("latin-1", "replace").decode("latin-1"), ln=True, align='C')
         pdf.ln(10)
     
         pdf.set_font("Arial", '', 12)
-        pdf.cell(0, 8, f"Total ganado: EUR {total_ganado:.2f}", ln=True)
-        pdf.cell(0, 8, f"Comisión clientes (30%): EUR {comision_clientes:.2f}", ln=True)
-        pdf.cell(0, 8, f"Total neto: EUR {total_neto:.2f}", ln=True)
+        linea1 = f"Total ganado: EUR {total_ganado:.2f}"
+        linea2 = f"Comisión clientes (30%): EUR {comision_clientes:.2f}"
+        linea3 = f"Total neto: EUR {total_neto:.2f}"
+        pdf.cell(0, 8, linea1.encode("latin-1", "replace").decode("latin-1"), ln=True)
+        pdf.cell(0, 8, linea2.encode("latin-1", "replace").decode("latin-1"), ln=True)
+        pdf.cell(0, 8, linea3.encode("latin-1", "replace").decode("latin-1"), ln=True)
         pdf.ln(8)
     
         pdf.set_font("Arial", 'B', 12)
@@ -447,9 +451,11 @@ elif seccion == "Reporte Diario":
                 fecha_str = fecha_str.date().isoformat() if pd.notna(fecha_str) else "Fecha inválida"
     
                 linea = f"- {id_prenda} | Cliente: {cliente} | {tipo} Talla {talla} | EUR {precio} | {fecha_str}"
+                linea = linea.encode("latin-1", "replace").decode("latin-1")
                 pdf.multi_cell(0, 8, linea)
             except Exception:
-                pdf.multi_cell(0, 8, "Error al mostrar una venta.")
+                pdf.multi_cell(0, 8, "Error al mostrar una venta".encode("latin-1", "replace").decode("latin-1"))
+    
         pdf.ln(8)
     
         if not nuevas_altas.empty:
@@ -459,10 +465,11 @@ elif seccion == "Reporte Diario":
             for _, row in nuevas_altas.iterrows():
                 try:
                     linea = " - ".join([f"{col}: {str(row[col])}" for col in nuevas_altas.columns if pd.notna(row[col])])
+                    linea = linea.encode("latin-1", "replace").decode("latin-1")
                     pdf.multi_cell(0, 8, linea)
                     pdf.ln(1)
                 except Exception:
-                    pdf.multi_cell(0, 8, "Error al mostrar un cliente.")
+                    pdf.multi_cell(0, 8, "Error al mostrar un cliente".encode("latin-1", "replace").decode("latin-1"))
     
         buffer = BytesIO()
         pdf.output(buffer)
