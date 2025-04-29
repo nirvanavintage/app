@@ -88,12 +88,12 @@ if st.button("🔄 Sincronizar datos desde Google Sheets"):
     st.rerun()
 
 
-try:
-    df_prendas = cargar("Prendas")
-    df_clientes = cargar("Clientes")
-except:
-    st.error("❌ No se pudieron cargar los datos.")
-    st.stop()
+    try:
+        df_prendas = cargar("Prendas")
+        df_clientes = cargar("Clientes")
+    except:
+        st.error("❌ No se pudieron cargar los datos.")
+        st.stop()
 
 
 # Sección inicializada para evitar NameError
