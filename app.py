@@ -363,7 +363,14 @@ elif seccion == "Generador de Etiquetas":
             )
     else:
         st.info("No hay prendas vendidas hoy para generar etiquetas.")
+
+
+
 elif seccion == "Reporte Diario":
+
+    def texto_fpdf(texto):
+        return str(texto).encode('latin-1', 'replace').decode('latin-1')
+
     st.header("📊 Reporte Diario")
 
     # Selección de fecha
