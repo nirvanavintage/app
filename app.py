@@ -33,7 +33,7 @@ if not st.session_state.authenticated:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
 
-# Encabezado
+# Encabezado principal
 st.markdown("""
 <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
 <div style='text-align:center'>
@@ -47,7 +47,7 @@ st.markdown("""
 datos_actualizados = st.button("🔄 Sincronizar datos desde Google Sheets")
 
 # Sidebar
-seccion = st.sidebar.selectbox("Secciones", ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"])
+seccion = st.sidebar.selectbox("Secciones", ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario", "Generador de Etiquetas"])
 
 # Datos
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
@@ -92,26 +92,19 @@ if seccion == "Buscar Cliente":
                 pdf.add_page()
                 pdf.set_font("Helvetica", size=10)
 
-                vendidos = prendas_cliente[prendas_cliente["Vendida"]]
-                stock = prendas_cliente[~prendas_cliente["Vendida"]]
+                prendas_cliente = prendas_cliente.sort_values(by="Fecha de recepción")
 
-                def tabla_prendas(titulo, df):
+                for fecha, df_fecha in prendas_cliente.groupby("Fecha de recepción"):
                     pdf.set_font("Helvetica", "B", 10)
-                    pdf.cell(0, 10, titulo, ln=True)
+                    pdf.cell(0, 10, f"Recepción: {fecha}", ln=True)
                     pdf.set_font("Helvetica", size=9)
-                    for _, row in df.iterrows():
-                        fecha = row["Fecha de recepción"] if pd.notna(row["Fecha de recepción"]) else ""
+                    for _, row in df_fecha.iterrows():
+                        tipo = row['Tipo de prenda']
                         talla = str(row['Talla']) if pd.notna(row['Talla']) else ""
-                        desc = f"{row['Tipo de prenda']}, Talla: {talla}, No vendida"
                         precio = pd.to_numeric(row['Precio'], errors='coerce')
                         precio_txt = str(int(precio)) if pd.notna(precio) else "0"
-                        pdf.cell(0, 10, f"{fecha}  {desc}   {precio_txt}", ln=True)
-                    pdf.ln(3)
-
-                if not vendidos.empty:
-                    tabla_prendas("Prendas Vendidas", vendidos)
-                if not stock.empty:
-                    tabla_prendas("Prendas en stock", stock)
+                        pdf.cell(0, 10, f"{tipo}, Talla: {talla}, {precio_txt}", ln=True)
+                    pdf.ln(2)
 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                     pdf.output(tmp.name)
@@ -156,10 +149,11 @@ elif seccion == "Reporte Diario":
 
         total = 0
         for _, row in vendidos_dia.iterrows():
+            tipo = row['Tipo de prenda']
             talla = str(row['Talla']) if pd.notna(row['Talla']) else ""
             caract_cols = [c for c in row.index if 'caracter' in c.lower()]
-            caracteristicas = str(row[caract_cols[0]]) if caract_cols else ""
-            desc = f"{row['Tipo de prenda']}, Talla: {talla}, {caracteristicas}"
+            caracteristicas = str(row[caract_cols[0]]) if caract_cols and pd.notna(row[caract_cols[0]]) else ""
+            desc = f"{tipo}, Talla: {talla}, {caracteristicas}"
             precio = pd.to_numeric(row['Precio'], errors='coerce')
             total += 0 if pd.isna(precio) else precio
             desc_clean = unicodedata.normalize('NFKD', desc).encode('ascii', 'ignore').decode('ascii')
@@ -176,3 +170,67 @@ elif seccion == "Reporte Diario":
             tmp.seek(0)
             st.download_button("📄 Descargar PDF", tmp.read(), file_name=f"ventas_{fecha_dt.strftime('%Y-%m-%d')}.pdf", mime="application/pdf")
             os.unlink(tmp.name)
+
+elif seccion == "Generador de Etiquetas":
+    st.subheader("🏷️ Generador de Etiquetas")
+    opcion = st.radio("Selecciona una opción:", ["Buscar por ID de prenda", "Generar todas las del día"])
+
+    if opcion == "Buscar por ID de prenda":
+        codigo = st.text_input("Introduce el ID de prenda")
+        match = df_prendas[df_prendas["ID Prenda"] == codigo]
+        if not match.empty:
+            row = match.iloc[0]
+            if st.button("📦 Generar etiqueta"):
+                class ETIQUETA(FPDF):
+                    def __init__(self):
+                        super().__init__(orientation='P', unit='mm', format=(70, 40))
+                    def etiqueta(self, precio, talla, cliente, prenda):
+                        self.set_font("Helvetica", "B", 22)
+                        self.cell(0, 15, f"{precio} € - Talla {talla}", ln=True, align="C")
+                        self.set_font("Helvetica", size=10)
+                        self.cell(0, 10, f"Cliente: {cliente} - Prenda: {prenda}", ln=True, align="C")
+
+                pdf = ETIQUETA()
+                pdf.add_page()
+                precio = row['Precio'] if pd.notna(row['Precio']) else ""
+                talla = row['Talla'] if pd.notna(row['Talla']) else ""
+                cliente = row['Nº Cliente (Formato C-xxx)']
+                prenda = row['ID Prenda']
+                pdf.etiqueta(precio, talla, cliente, prenda)
+
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                    pdf.output(tmp.name)
+                    tmp.seek(0)
+                    st.download_button("📥 Descargar Etiqueta", tmp.read(), file_name=f"etiqueta_{prenda}.pdf", mime="application/pdf")
+                    os.unlink(tmp.name)
+
+    elif opcion == "Generar todas las del día":
+        hoy = datetime.today().date()
+        df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce")
+        vendidas_hoy = df_prendas[df_prendas["Fecha Vendida"].dt.date == hoy]
+        st.write(f"Se encontraron {len(vendidas_hoy)} prendas vendidas hoy.")
+
+        if st.button("📦 Generar etiquetas del día"):
+            class ETIQUETA(FPDF):
+                def __init__(self):
+                    super().__init__(orientation='P', unit='mm', format=(70, 40))
+                def etiqueta(self, precio, talla, cliente, prenda):
+                    self.set_font("Helvetica", "B", 22)
+                    self.cell(0, 15, f"{precio} € - Talla {talla}", ln=True, align="C")
+                    self.set_font("Helvetica", size=10)
+                    self.cell(0, 10, f"Cliente: {cliente} - Prenda: {prenda}", ln=True, align="C")
+
+            pdf = ETIQUETA()
+            for _, row in vendidas_hoy.iterrows():
+                pdf.add_page()
+                precio = row['Precio'] if pd.notna(row['Precio']) else ""
+                talla = row['Talla'] if pd.notna(row['Talla']) else ""
+                cliente = row['Nº Cliente (Formato C-xxx)']
+                prenda = row['ID Prenda']
+                pdf.etiqueta(precio, talla, cliente, prenda)
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                pdf.output(tmp.name)
+                tmp.seek(0)
+                st.download_button("📥 Descargar Etiquetas PDF", tmp.read(), file_name=f"etiquetas_{hoy}.pdf", mime="application/pdf")
+                os.unlink(tmp.name)
