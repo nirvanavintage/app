@@ -3,184 +3,200 @@ import pandas as pd
 from fpdf import FPDF
 from datetime import datetime, timedelta
 
-# ░░ CONFIGURACIÓN BÁSICA ░░
+# =====================
+# Configuración general
+# =====================
+
 st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="wide")
+HIDE_COLS_PATTERN = [  # nombres exactos o parciales a descartar
+    "Marca temporal",              # columna A (timestamp del formulario)
+    "Merged Doc ID", "Merged Doc URL", "Link to merged Doc", "Document Merge Status"  # columnas P‑S
+]
 
-# === UTILIDADES ============================================================
+# Utilidad para ocultar columnas no deseadas
 
-def load_google_sheet(sheet_id: str, sheet_name: str) -> pd.DataFrame:
-    """Carga un sheet público como CSV y devuelve un DataFrame."""
-    url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={sheet_name}"
-    return pd.read_csv(url)
+def limpiar_df(df: pd.DataFrame) -> pd.DataFrame:
+    cols_a_quitar = [c for c in df.columns for pat in HIDE_COLS_PATTERN if pat.lower() in c.lower()]
+    return df.drop(columns=cols_a_quitar, errors="ignore")
 
-def clean_prendas(df: pd.DataFrame) -> pd.DataFrame:
-    # Normalizar Vendida ✔ / ❌
-    if "Vendida" in df.columns:
-        df["Vendida"] = df["Vendida"].astype(str).str.lower().map({"true": True, "false": False, "1": True, "0": False}).fillna(False)
-    # Ocultar columnas que no se quieren visualizar (A  y P‑S)
-    cols_to_hide = [
-        "Marca temporal",  # Columna A
-        *df.columns[df.columns.get_indexer(["P"]):]  # P hasta final si existen
-    ]
-    cols_to_hide = [c for c in cols_to_hide if c in df.columns]
-    return df.drop(columns=cols_to_hide, errors="ignore")
+# ==========
+# Encabezado
+# ==========
 
+st.markdown("""
+<h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
+<div style='text-align:center'>
+    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
+    <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
+    <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
+</div>
+""", unsafe_allow_html=True)
 
-def make_pdf_table(title: str, df: pd.DataFrame, filename: str):
-    pdf = FPDF(orientation="L", unit="mm", format="A4")
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Arial", size=14)
-    pdf.cell(0, 10, txt=title, ln=True)
-    pdf.ln(4)
+# ====================
+# Cargar datos remotos
+# ====================
 
-    # Cabeceras
-    pdf.set_font("Arial", "B", 10)
-    col_w = 280 / len(df.columns)
-    for col in df.columns:
-        pdf.cell(col_w, 8, col[:25], 1, 0, 'C')
-    pdf.ln()
-
-    pdf.set_font("Arial", size=9)
-    for _, row in df.iterrows():
-        for val in row:
-            pdf.cell(col_w, 6, str(val)[:30], 1, 0, 'C')
-        pdf.ln()
-    pdf.output(filename)
-
-# === CARGA DE DATOS ========================================================
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
+URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
+
+def cargar(sheet: str) -> pd.DataFrame:
+    return pd.read_csv(URL_BASE + sheet)
 
 try:
-    df_prendas_raw = load_google_sheet(SHEET_ID, "Prendas")
-    df_clientes = load_google_sheet(SHEET_ID, "Clientes")
-    df_prendas = clean_prendas(df_prendas_raw.copy())
-except Exception as e:
-    st.error("❌ No se pudieron cargar los datos de Google Sheets. Asegúrate de que el documento sea público.")
+    df_prendas = cargar("Prendas")
+    df_clientes = cargar("Clientes")
+except Exception:
+    st.error("❌ No se pudieron cargar los datos. Revisa la conexión o los permisos de la hoja Google Sheets.")
     st.stop()
 
-# === SIDEBAR / NAVEGACIÓN ==================================================
-with st.sidebar:
-    st.header("📂 Secciones")
-    section = st.radio(
-        "", [
-            "🏷️ Buscar Cliente",
-            "📦 Consultar Stock",
-            "🛍️ Consultar Vendidos",
-            "📲 Generar Avisos de Hoy",
-            "📊 Reporte Diario",
-            "📝 Informe Cliente por Entregas"
-        ],
-        label_visibility="collapsed"
-    )
-    st.markdown("---")
-    st.subheader("🔗 Formularios y App")
-    st.markdown("[➕ Nueva Prenda](https://forms.gle/QAXSH5ZP6oCpWEcL6)")
-    st.markdown("[👤 Nuevo Cliente](https://forms.gle/2BpmDNegKNTNc2dK6)")
-    st.markdown("[🔄 App Marcar Vendido](https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido)")
+# Normalizar columna Vendida (casilla de verificación)
+if "Vendida" in df_prendas.columns:
+    df_prendas["Vendida"] = df_prendas["Vendida"].astype(str).str.lower().map({"true": True, "false": False})
 
-# === CABECERA MÉTRICAS =====================================================
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("📦 Stock", int((df_prendas["Vendida"] == False).sum()))
-col2.metric("✅ Vendidas", int((df_prendas["Vendida"] == True).sum()))
-# Avisos hoy
-hoy = pd.Timestamp.today().normalize()
-avisos_hoy = df_prendas_raw[df_prendas_raw["Fecha Aviso"].astype(str).str.startswith(hoy.strftime("%d/%m/%Y"))]
-col3.metric("📲 Avisos Hoy", len(avisos_hoy))
-col4.metric("💸 Ventas Hoy", int((df_prendas_raw["Fecha Vendida"].astype(str).str.startswith(hoy.strftime("%d/%m/%Y"))).sum()))
+# Eliminar columnas que no deben mostrarse
+prendas_limpio = limpiar_df(df_prendas)
 
-# === SECCIONES ============================================================
+# ================
+# Secciones (menú)
+# ================
 
-if section.startswith("🏷️"):
-    st.subheader("🔍 Buscar Cliente")
+seccion = st.sidebar.radio(
+    "🪄 Secciones",
+    [
+        "Buscar Cliente",
+        "Consultar Stock",
+        "Consultar Vendidos",
+        "Generar Avisos de Hoy",
+        "Reporte Diario",
+        "Informe Cliente por Entregas",
+    ],
+    index=0,
+)
+
+# --------------
+# Buscar Cliente
+# --------------
+if seccion == "Buscar Cliente":
     nombre = st.text_input("Nombre cliente")
-    if st.button("Buscar") and nombre:
-        res = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
-        if res.empty:
-            st.warning("No se encontraron clientes.")
+    if st.button("🔍 Buscar") and nombre:
+        clientes_match = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
+        if clientes_match.empty:
+            st.warning("No se encontraron coincidencias.")
         else:
-            st.dataframe(res, use_container_width=True)
-            ids = res["ID Cliente"].unique()
-            prendas_cli = df_prendas[df_prendas_raw["Nº Cliente (Formato C-xxx)"].isin(ids)]
-            st.write("### 🍋 Stock del cliente")
-            st.dataframe(prendas_cli[prendas_cli["Vendida"] == False])
-            st.write("### ✅ Vendidas del cliente")
-            st.dataframe(prendas_cli[prendas_cli["Vendida"] == True])
+            st.success(f"Se encontraron {len(clientes_match)} cliente(s)")
+            st.dataframe(limpiar_df(clientes_match), use_container_width=True)
+            ids = clientes_match["ID Cliente"].unique()
+            prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"].isin(ids)]
+            st.subheader("👜 Prendas del cliente")
+            st.dataframe(prendas_cliente, use_container_width=True)
 
-elif section.startswith("📦"):
-    st.subheader("📦 Prendas en Stock")
-    st.dataframe(df_prendas[df_prendas["Vendida"] == False], use_container_width=True)
-    if st.button("📥 Descargar PDF Stock"):
-        ts = datetime.now().strftime("%Y%m%d_%H%M")
-        fname = f"stock_total_{ts}.pdf"
-        make_pdf_table("Stock disponible", df_prendas[df_prendas["Vendida"] == False], fname)
+# ----------------
+# Consultar Stock
+# ----------------
+elif seccion == "Consultar Stock":
+    st.subheader("🍋 Stock Actual")
+    stock = prendas_limpio[~df_prendas["Vendida"]]
+    st.dataframe(stock, use_container_width=True)
+
+# ------------------
+# Consultar Vendidos
+# ------------------
+elif seccion == "Consultar Vendidos":
+    st.subheader("✅ Prendas Vendidas")
+    vendidos = prendas_limpio[df_prendas["Vendida"]]
+    st.dataframe(vendidos, use_container_width=True)
+
+# ----------------------
+# Generar Avisos de Hoy
+# ----------------------
+elif seccion == "Generar Avisos de Hoy":
+    hoy = pd.Timestamp.today().normalize()
+    avisos_hoy = prendas_limpio[pd.to_datetime(df_prendas["Fecha Aviso"], errors="coerce").dt.normalize() == hoy]
+    st.subheader(f"📣 Avisos para {hoy.date()}: {len(avisos_hoy)}")
+    st.dataframe(avisos_hoy, use_container_width=True)
+
+# --------------
+# Reporte Diario
+# --------------
+elif seccion == "Reporte Diario":
+    hoy = pd.Timestamp.today().normalize()
+    stock = prendas_limpio[~df_prendas["Vendida"]]
+    vendidos_hoy = prendas_limpio[(df_prendas["Vendida"]) & (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.normalize() == hoy)] if "Fecha Vendida" in df_prendas else pd.DataFrame()
+    avisos_hoy = prendas_limpio[pd.to_datetime(df_prendas["Fecha Aviso"], errors="coerce").dt.normalize() == hoy]
+
+    st.markdown("## Avisos de Hoy")
+    st.dataframe(avisos_hoy, use_container_width=True)
+
+    st.markdown("## Ventas de Hoy")
+    st.dataframe(vendidos_hoy, use_container_width=True)
+
+    st.markdown("## Stock Actual")
+    st.dataframe(stock, use_container_width=True)
+
+    if st.button("📄 PDF Reporte Diario"):
+        pdf = FPDF(orientation="L")
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(0, 10, f"Reporte Diario - {hoy.date()}", ln=True, align="C")
+        pdf.ln(4)
+
+        def tabla(df, titulo):
+            pdf.set_font("Arial", style="B", size=11)
+            pdf.cell(0, 8, titulo, ln=True)
+            pdf.set_font("Arial", size=9)
+            col_w = pdf.w / (len(df.columns) + 1)
+            for col in df.columns:
+                pdf.cell(col_w, 6, col, border=1)
+            pdf.ln()
+            for _, row in df.iterrows():
+                for item in row:
+                    pdf.cell(col_w, 5, str(item), border=1)
+                pdf.ln()
+            pdf.ln(4)
+
+        tabla(avisos_hoy, "Avisos de Hoy")
+        tabla(vendidos_hoy, "Ventas de Hoy")
+        tabla(stock, "Stock Actual")
+
+        fname = f"reporte_{hoy.strftime('%Y-%m-%d_%H%M%S')}.pdf"
+        pdf.output(fname)
         with open(fname, "rb") as f:
-            st.download_button("Descargar PDF", f, fname)
+            st.download_button("Descargar", f, file_name=fname, mime="application/pdf")
 
-elif section.startswith("🛍️"):
-    st.subheader("🛍️ Prendas Vendidas")
-    st.dataframe(df_prendas[df_prendas["Vendida"] == True], use_container_width=True)
-    if st.button("📥 Descargar PDF Vendidos"):
-        ts = datetime.now().strftime("%Y%m%d_%H%M")
-        fname = f"vendidos_{ts}.pdf"
-        make_pdf_table("Prendas vendidas", df_prendas[df_prendas["Vendida"] == True], fname)
-        with open(fname, "rb") as f:
-            st.download_button("Descargar PDF", f, fname)
-
-elif section.startswith("📲"):
-    st.subheader("📲 Avisos para hoy")
-    st.dataframe(avisos_hoy.drop(columns=[c for c in avisos_hoy.columns if c not in df_prendas.columns]), use_container_width=True)
-
-elif section.startswith("📊"):
-    st.subheader("📊 Reporte de Ventas")
-    rango = st.selectbox("Rango de fechas", ["Hoy", "Última semana", "Último mes"])
-    if rango == "Hoy":
-        fecha_ini = hoy
-    elif rango == "Última semana":
-        fecha_ini = hoy - timedelta(days=7)
-    else:
-        fecha_ini = hoy - timedelta(days=30)
-    ventas = df_prendas_raw[(df_prendas_raw["Vendida"] == True) & (pd.to_datetime(df_prendas_raw["Fecha Vendida"], dayfirst=True, errors='coerce') >= fecha_ini)]
-    st.dataframe(clean_prendas(ventas), use_container_width=True)
-    if st.button("📥 Descargar PDF Ventas") and not ventas.empty:
-        ts = datetime.now().strftime("%Y%m%d_%H%M")
-        fname = f"ventas_{ts}.pdf"
-        make_pdf_table("Ventas", clean_prendas(ventas), fname)
-        with open(fname, "rb") as f:
-            st.download_button("Descargar PDF", f, fname)
-
-elif section.startswith("📝"):
-    st.subheader("📝 Informe por Entregas")
+# ---------------------------------
+# Informe Cliente por Entregas (Lote)
+# ---------------------------------
+else:
     nombre = st.text_input("Nombre cliente")
     if st.button("Buscar entregas") and nombre:
-        res = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
-        if res.empty:
+        cliente = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
+        if cliente.empty:
             st.warning("No se encontró el cliente.")
         else:
-            cli = res.iloc[0]
-            idc = cli["ID Cliente"]
-            prendas_cli = df_prendas_raw[df_prendas_raw["Nº Cliente (Formato C-xxx)"] == idc]
-            entrega_fechas = prendas_cli.groupby("Fecha de recepción").size().reset_index(name="Nº Prendas")
-            st.dataframe(entrega_fechas)
-            if st.button("📥 Generar PDF informe cliente"):
-                ts = datetime.now().strftime("%Y%m%d_%H%M")
-                fname = f"informe_{idc}_{ts}.pdf"
-                pdf = FPDF()
+            idc = cliente.iloc[0]["ID Cliente"]
+            prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"] == idc]
+            st.dataframe(prendas_cliente, use_container_width=True)
+            if st.button("📄 PDF Informe Cliente"):
+                pdf = FPDF(orientation="L")
                 pdf.add_page()
-                pdf.set_font("Arial", size=12)
-                pdf.cell(0, 10, f"Cliente: {cli['Nombre y Apellidos']} ({idc})", ln=True)
-                pdf.cell(0, 10, f"Teléfono: {cli['Teléfono']}", ln=True)
-                pdf.ln(5)
-                pdf.cell(0, 10, "Entregas:", ln=True)
-                for _, row in entrega_fechas.iterrows():
-                    pdf.cell(0, 8, f"{row['Fecha de recepción']}  -  {row['Nº Prendas']} prenda(s)", ln=True)
+                pdf.set_font("Arial", style="B", size=12)
+                pdf.cell(0, 8, f"Informe Cliente – {cliente.iloc[0]['Nombre y Apellidos']} ({idc})", ln=True)
+                pdf.set_font("Arial", size=9)
                 pdf.ln(4)
-                pdf.cell(0, 10, "Detalle de Prendas:", ln=True)
-                for _, row in clean_prendas(prendas_cli).iterrows():
-                    pdf.cell(0, 8, f"{row['ID Prenda']}  |  {row['Tipo de prenda']}  |  Vendida: {row['Vendida']} | Precio: {row.get('Precio',0)}", ln=True)
+
+                col_w = pdf.w / (len(prendas_cliente.columns) + 1)
+                for col in prendas_cliente.columns:
+                    pdf.cell(col_w, 6, col, border=1)
+                pdf.ln()
+                for _, row in prendas_cliente.iterrows():
+                    for item in row:
+                        pdf.cell(col_w, 5, str(item), border=1)
+                    pdf.ln()
+
+                fname = f"informe_{idc}_{datetime.now().strftime('%Y-%m-%d_%H%M%S')}.pdf"
                 pdf.output(fname)
                 with open(fname, "rb") as f:
-                    st.download_button("Descargar PDF", f, fname)
+                    st.download_button("Descargar", f, file_name=fname, mime="application/pdf")
 
-# === FOOTER ===============================================================
-st.markdown("<br><div style='text-align:center;'>💖 Nirvana Vintage 2025</div>", unsafe_allow_html=True)
+st.markdown("---")
+st.markdown("<div style='text-align:center'>❤️ Nirvana Vintage 2025</div>", unsafe_allow_html=True)
