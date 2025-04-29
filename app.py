@@ -103,7 +103,14 @@ if seccion == "Generador de Etiquetas":
     cod = st.text_input("Introduce un código de prenda")
     hoy = pd.Timestamp.today().normalize()
 
-    st.subheader("🔹 Generar una sola etiqueta")
+    def texto_fpdf(txt):
+        if pd.isna(txt):
+            return ""
+        txt = str(txt)
+        txt = unicodedata.normalize('NFKD', txt)
+        return txt.encode('latin-1', 'ignore').decode('latin-1')
+
+    st.markdown("#### 🔹 Generar una sola etiqueta")
     if st.button("Generar etiqueta única") and cod:
         prenda = df_prendas[df_prendas["ID Prenda"] == cod]
         if not prenda.empty:
@@ -111,20 +118,21 @@ if seccion == "Generador de Etiquetas":
             row = prenda.iloc[0]
             pdf = FPDF(format=(70, 40))
             pdf.add_page()
-            pdf.set_font("Arial", size=10)
+            pdf.set_font("Arial", 'B', 18)
             pdf.set_xy(5, 5)
-            pdf.set_font("Arial", 'B', size=18)
-            pdf.cell(60, 10, f"{row['Precio']} € | Talla {row['Talla']}", ln=True)
+            pdf.cell(60, 10, texto_fpdf(f"{row['Precio']} €"), ln=True)
+            pdf.cell(60, 10, texto_fpdf(f"Talla {row['Talla']}"), ln=True)
             pdf.set_font("Arial", size=10)
-            pdf.cell(60, 10, f"Cliente: {row['Nº Cliente (Formato C-xxx)']}", ln=True)
-            pdf.cell(60, 10, f"Prenda: {row['ID Prenda']}", ln=True)
+            pdf.cell(60, 10, texto_fpdf(f"Cliente: {row['Nº Cliente (Formato C-xxx)']}"), ln=True)
+            pdf.cell(60, 10, texto_fpdf(f"Prenda: {row['ID Prenda']}"), ln=True)
             buffer = BytesIO()
             pdf.output(buffer)
+            buffer.seek(0)
             st.download_button("⬇️ Descargar Etiqueta", buffer.getvalue(), file_name=f"etiqueta_{cod}.pdf")
         else:
             st.warning("No se encontró la prenda.")
 
-    st.subheader("🔹 Generar etiquetas de productos vendidos hoy")
+    st.markdown("#### 🔹 Generar etiquetas de productos vendidos hoy")
     hoy_vendidas = df_prendas[(df_prendas["Vendida"]) & (df_prendas["Fecha Vendida"].dt.date == hoy.date())]
     if not hoy_vendidas.empty:
         st.dataframe(hoy_vendidas)
@@ -132,13 +140,16 @@ if seccion == "Generador de Etiquetas":
             pdf = FPDF(orientation='P', unit='mm', format=(70, 40))
             for _, row in hoy_vendidas.iterrows():
                 pdf.add_page()
-                pdf.set_xy(5, 5)
                 pdf.set_font("Arial", 'B', 18)
-                pdf.cell(60, 10, f"{row['Precio']} € | Talla {row['Talla']}", ln=True)
+                pdf.set_xy(5, 5)
+                pdf.cell(60, 10, texto_fpdf(f"{row['Precio']} €"), ln=True)
+                pdf.cell(60, 10, texto_fpdf(f"Talla {row['Talla']}"), ln=True)
                 pdf.set_font("Arial", size=10)
-                pdf.cell(60, 10, f"Cliente: {row['Nº Cliente (Formato C-xxx)']}", ln=True)
-                pdf.cell(60, 10, f"Prenda: {row['ID Prenda']}", ln=True)
+                pdf.cell(60, 10, texto_fpdf(f"Cliente: {row['Nº Cliente (Formato C-xxx)']}"), ln=True)
+                pdf.cell(60, 10, texto_fpdf(f"Prenda: {row['ID Prenda']}"), ln=True)
             buffer = BytesIO()
             pdf.output(buffer)
+            buffer.seek(0)
             st.download_button("⬇️ Descargar Todas las Etiquetas", buffer.getvalue(), file_name="etiquetas_vendidas_hoy.pdf")
-
+    else:
+        st.info("No hay prendas vendidas hoy.")
