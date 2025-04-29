@@ -4,7 +4,6 @@ import tempfile
 import os
 from datetime import datetime
 from fpdf import FPDF
-import unicodedata
 
 st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="wide")
 
@@ -26,12 +25,12 @@ if not st.session_state.authenticated:
     if st.button("🔓 Entrar"):
         if password == "nirvana2025":
             st.session_state.authenticated = True
-            st.rerun()
+            st.experimental_rerun()
         else:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
 
-# Encabezado
+# Encabezado y enlaces
 st.markdown("""
 <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
 <div style='text-align:center'>
@@ -48,7 +47,7 @@ if st.button("🔄 Sincronizar datos desde Google Sheets"):
 
 # Menú lateral
 seccion = st.sidebar.selectbox("Secciones", [
-    "Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"\])
+    "Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"])
 
 # Cargar datos desde Google Sheets
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
@@ -66,7 +65,8 @@ except Exception as e:
     st.stop()
 
 # Normalizar campo Vendida
-df_prendas["Vendida"] = df_prendas["Vendida"].fillna(False).astype(bool)
+if df_prendas["Vendida"].dtype != bool:
+    df_prendas["Vendida"] = df_prendas["Vendida"].fillna(False).astype(str).str.lower().isin(["true", "1", "yes", "x"])
 
 # Secciones
 if seccion == "Buscar Cliente":
@@ -88,13 +88,12 @@ elif seccion == "Consultar Vendidos":
 elif seccion == "Reporte Diario":
     fecha = st.date_input("Selecciona una fecha para el reporte", value=datetime.today())
     fecha_dt = pd.to_datetime(fecha)
-    vendidos_dia = df_prendas[(df_prendas["Vendida"]) & (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.date == fecha_dt.date())]
+    df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce")
+    vendidos_dia = df_prendas[(df_prendas["Vendida"]) & (df_prendas["Fecha Vendida"].dt.date == fecha_dt.date())]
     st.subheader(f"✅ Prendas Vendidas el {fecha_dt.strftime('%d/%m/%Y')} ({len(vendidos_dia)})")
     st.dataframe(vendidos_dia, use_container_width=True)
 
     if st.button("📄 Descargar PDF del Día"):
-        from fpdf import FPDF
-
         class PDF(FPDF):
             def header(self):
                 self.set_font("Helvetica", "B", 12)
