@@ -76,6 +76,11 @@ h1 {
 </div>
 """, unsafe_allow_html=True)
 
+<div style='position: absolute; top: 25px; right: 25px;'>
+    <a href='?seccion=avisos' target='_blank' style='padding: 8px 18px; background-color: #ffe082; color: black; border-radius: 10px; font-weight: bold; text-decoration: none; border: 1px solid #aaa;'>📩 Avisos</a>
+</div>
+
+
 # --- URL construida dinámicamente desde el ID guardado ---
 SHEET_ID = st.session_state.get("sheet_id", "")
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
@@ -96,10 +101,15 @@ try:
 except:
     st.error("❌ No se pudieron cargar los datos.")
     st.stop()
-
 # Sección inicializada para evitar NameError
 if "seccion" not in st.session_state:
     st.session_state.seccion = ""
+
+# Captura de parámetro de URL (permite abrir "Avisos" en nueva pestaña)
+query_params = st.experimental_get_query_params()
+seccion_query = query_params.get("seccion", [""])[0].strip().lower()
+if seccion_query == "avisos":
+    st.session_state.seccion = "Avisos"
 
 st.markdown("## 📂 Selecciona una sección")
 col1, col2, col3 = st.columns([1, 1, 1])
@@ -122,12 +132,17 @@ with col3:
     if st.button("📅 Gestión de Citas"):
         st.session_state.seccion = "Gestión de Citas"
 
-# Si no se ha pulsado ningún botón todavía
+# Botón fijo en cabecera para "Avisos"
+st.markdown("""
+<div style='position: absolute; top: 25px; right: 25px;'>
+    <a href='?seccion=avisos' target='_blank' style='padding: 8px 18px; background-color: #ffe082; color: black; border-radius: 10px; font-weight: bold; text-decoration: none; border: 1px solid #aaa;'>📩 Avisos</a>
+</div>
+""", unsafe_allow_html=True)
+
 if not st.session_state.seccion:
     st.info("Selecciona una sección para comenzar.")
     st.stop()
 
-# Asignar valor actual
 seccion = st.session_state.seccion
 # Datos
 SHEET_ID = st.session_state.get("sheet_id", "")
