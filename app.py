@@ -16,7 +16,7 @@ def texto_fpdf(texto):
 
 st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="wide")
 
-# Seguridad persistente
+# --- Login con contraseña y enlace de Sheet ---
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 
@@ -31,7 +31,6 @@ if not st.session_state.authenticated:
 
     if st.button("🔓 Entrar"):
         if password == "nirvana2025" and "docs.google.com/spreadsheets" in link_sheet:
-            # Extraer el ID del enlace
             import re
             match = re.search(r"/d/([a-zA-Z0-9-_]+)", link_sheet)
             if match:
@@ -39,11 +38,12 @@ if not st.session_state.authenticated:
                 st.session_state.authenticated = True
                 st.rerun()
             else:
-                st.warning("El enlace no es válido. Asegúrate de copiarlo directamente desde la barra del navegador.")
+                st.warning("El enlace no es válido.")
         else:
             st.warning("Contraseña o enlace incorrecto.")
     st.stop()
-# Mejor diseño: título + botones + protección del valor seccion
+
+# --- Título bonito con links arriba ---
 st.markdown("""
 <style>
 h1 {
@@ -76,25 +76,26 @@ h1 {
 </div>
 """, unsafe_allow_html=True)
 
+# --- URL construida dinámicamente desde el ID guardado ---
+SHEET_ID = st.session_state.get("sheet_id", "")
+URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 
 @st.cache_data(show_spinner=False)
 def cargar(sheet):
     return pd.read_csv(URL_BASE + sheet)
 
-
-# 🔄 Sincronizar
+# --- Botón sincronizar ---
 if st.button("🔄 Sincronizar datos desde Google Sheets"):
     st.cache_data.clear()
     st.rerun()
 
-
-    try:
-        df_prendas = cargar("Prendas")
-        df_clientes = cargar("Clientes")
-    except:
-        st.error("❌ No se pudieron cargar los datos.")
-        st.stop()
-
+# --- Cargar datos automáticamente siempre ---
+try:
+    df_prendas = cargar("Prendas")
+    df_clientes = cargar("Clientes")
+except:
+    st.error("❌ No se pudieron cargar los datos.")
+    st.stop()
 
 # Sección inicializada para evitar NameError
 if "seccion" not in st.session_state:
