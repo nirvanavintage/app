@@ -72,6 +72,7 @@ except:
 df_prendas["Vendida"] = df_prendas["Vendida"].astype(str).str.lower().isin(["true", "1", "yes", "x"])
 df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce")
 df_prendas["Fecha de recepción"] = pd.to_datetime(df_prendas["Fecha de recepción"], errors="coerce")# --- Buscar Cliente ---
+# --- Buscar Cliente ---
 if seccion == "Buscar Cliente":
     st.header("🔍 Buscar Cliente")
     nombres_disponibles = df_clientes["Nombre y Apellidos"].dropna().unique().tolist()
@@ -94,19 +95,19 @@ if seccion == "Buscar Cliente":
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", 'B', 16)
-                pdf.cell(0, 10, texto_fpdf(f"Informe del cliente {id_cliente} {nombre_cliente}"), ln=True, align='C')
+                pdf.cell(0, 10, f"Informe del cliente {id_cliente} {nombre_cliente}", ln=True, align='C')
                 pdf.ln(10)
 
                 pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 8, texto_fpdf("Datos del cliente:"), ln=True)
+                pdf.cell(0, 8, "Datos del cliente:", ln=True)
                 for col in ["ID Cliente", "Teléfono", "Email", "Fecha de Alta", "DNI"]:
                     valor = resultados.iloc[0].get(col, "")
                     pdf.set_font("Arial", '', 11)
-                    pdf.cell(0, 7, texto_fpdf(f"{col}: {valor}"), ln=True)
+                    pdf.cell(0, 7, f"{col}: {valor}", ln=True)
 
                 pdf.ln(5)
                 pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 8, texto_fpdf("Prendas entregadas:"), ln=True)
+                pdf.cell(0, 8, "Prendas entregadas:", ln=True)
 
                 if not prendas_cliente.empty:
                     prendas_cliente = prendas_cliente.sort_values("Fecha de recepción")
@@ -118,14 +119,14 @@ if seccion == "Buscar Cliente":
                             if fecha_str != fecha_actual:
                                 pdf.ln(5)
                                 pdf.set_font("Arial", 'B', 11)
-                                pdf.cell(0, 7, texto_fpdf(f"Recepción: {fecha_str}"), ln=True)
+                                pdf.cell(0, 7, f"Recepción: {fecha_str}", ln=True)
                                 fecha_actual = fecha_str
                         pdf.set_font("Arial", '', 10)
                         descripcion = f"- {row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')} | {row.get('Caracteristicas (Color, estampado, material...)', '')}"
-                        pdf.cell(0, 6, texto_fpdf(descripcion), ln=True)
+                        pdf.cell(0, 6, descripcion, ln=True)
                 else:
                     pdf.set_font("Arial", '', 10)
-                    pdf.cell(0, 6, texto_fpdf("No hay prendas registradas para este cliente."), ln=True)
+                    pdf.cell(0, 6, "No hay prendas registradas para este cliente.", ln=True)
 
                 buffer = BytesIO()
                 pdf.output(buffer)
