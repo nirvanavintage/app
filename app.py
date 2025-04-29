@@ -424,13 +424,13 @@ elif seccion == "Reporte Diario":
         pdf.set_font("Helvetica", size=12)
     
         pdf.set_font(style="B", size=16)
-        pdf.cell(0, 10, f"📑 Reporte Diario - {hoy.date()}", ln=True, align="C")
+        pdf.cell(0, 10, f" Reporte Diario - {hoy.date()}", ln=True, align="C")
         pdf.ln(10)
     
         pdf.set_font(style="", size=12)
-        pdf.cell(0, 8, f"💰 Total ganado: EUR {total_ganado:.2f}", ln=True)
-        pdf.cell(0, 8, f"👛 Comisión clientes (30%): EUR {comision_clientes:.2f}", ln=True)
-        pdf.cell(0, 8, f"📈 Total neto: EUR {total_neto:.2f}", ln=True)
+        pdf.cell(0, 8, f" Total ganado: EUR {total_ganado:.2f}", ln=True)
+        pdf.cell(0, 8, f" Comisión clientes (30%): EUR {comision_clientes:.2f}", ln=True)
+        pdf.cell(0, 8, f"Total neto: EUR {total_neto:.2f}", ln=True)
         pdf.ln(8)
     
         pdf.set_font(style="B", size=12)
@@ -450,13 +450,13 @@ elif seccion == "Reporte Diario":
                 linea = f"- {id_prenda} | Cliente: {cliente} | {tipo} Talla {talla} | EUR {precio} | {fecha_str}"
                 pdf.multi_cell(0, 8, linea)
             except:
-                pdf.multi_cell(0, 8, "⚠️ Error al mostrar una venta.")
+                pdf.multi_cell(0, 8, "⚠ Error al mostrar una venta.")
     
         pdf.ln(8)
     
         if not nuevas_altas.empty:
             pdf.set_font(style="B", size=12)
-            pdf.cell(0, 8, "🆕 Altas de nuevos clientes:", ln=True)
+            pdf.cell(0, 8, "Altas de nuevos clientes:", ln=True)
             pdf.set_font(size=10)
             for _, row in nuevas_altas.iterrows():
                 try:
@@ -464,7 +464,7 @@ elif seccion == "Reporte Diario":
                     pdf.multi_cell(0, 8, linea)
                     pdf.ln(1)
                 except:
-                    pdf.multi_cell(0, 8, "⚠️ Error al mostrar un cliente.")
+                    pdf.multi_cell(0, 8, " Error al mostrar un cliente.")
     
         buffer = BytesIO()
         pdf.output(buffer)
