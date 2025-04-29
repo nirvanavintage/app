@@ -323,24 +323,28 @@ elif seccion == "Generador de Etiquetas":
     
     if not vendidas_hoy.empty:
         st.dataframe(vendidas_hoy)
+        if st.button("⬇️ Descargar Etiquetas Horizontales"):
+        pdf = FPDF(orientation='L', unit='mm', format=(105, 74))  # A7 horizontal real
+        pdf.set_auto_page_break(auto=False)
     
-        if st.button("🖨️ Generar PDF etiquetas individuales del día"):
-            pdf = FPDF(orientation='L', unit='mm', format=(105, 74))  # A7 horizontal
-            pdf.set_auto_page_break(auto=False)
+        for _, row in vendidas_hoy.iterrows():
+            pdf.add_page()
+            precio = str(row.get("Precio", ""))
+            talla = row.get("Talla", "")
+            cliente = row.get("Nº Cliente (Formato C-xxx)", "")
+            prenda = row.get("ID Prenda", "")
     
-            for _, row in vendidas_hoy.iterrows():
-                pdf.add_page()
-                pdf.set_xy(0, 25)
-                pdf.set_font("Arial", 'B', 18)
-                pdf.cell(105, 10, f"EUR {row.get('Precio', '')}", ln=2, align='C')
-                pdf.cell(105, 10, f"Talla {row.get('Talla', '')}", ln=2, align='C')
-                pdf.set_font("Arial", '', 12)
-                pdf.cell(105, 8, f"Cliente: {row.get('Nº Cliente (Formato C-xxx)', '')}", ln=2, align='C')
-                pdf.cell(105, 8, f"Prenda: {row.get('ID Prenda', '')}", ln=2, align='C')
+            pdf.set_font("Arial", 'B', 22)
+            pdf.set_xy(0, 20)
+            pdf.cell(105, 12, f"€ {precio}", ln=2, align='C')
+            pdf.set_font("Arial", 'B', 20)
+            pdf.cell(105, 10, f"Talla {talla}", ln=2, align='C')
     
-            buffer = BytesIO()
-            pdf.output(buffer)
-            buffer.seek(0)
-            st.download_button("⬇️ Descargar Etiquetas Horizontales", buffer.getvalue(), file_name="etiquetas_horizontales_hoy.pdf")
-    else:
-        st.info("No hay prendas vendidas hoy.")
+            pdf.set_font("Arial", '', 14)
+            pdf.cell(105, 8, f"Cliente: {cliente}", ln=2, align='C')
+            pdf.cell(105, 8, f"Prenda: {prenda}", ln=2, align='C')
+    
+        buffer = BytesIO()
+        pdf.output(buffer)
+        buffer.seek(0)
+        st.download_button("⬇️ Descargar Etiquetas A7 Horizontal", buffer.getvalue(), file_name="etiquetas_horizontales_hoy.pdf")
