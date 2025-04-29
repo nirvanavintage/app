@@ -442,13 +442,16 @@ elif seccion == "Reporte Diario":
         pdf.cell(0, 10, texto_fpdf("Ventas del Día:"), ln=True)
         pdf.set_font("Arial", '', 10)
 
-        for _, row in ventas_dia[columnas_ventas].iterrows():
-            linea = (
-                f"Prenda {row['ID Prenda']} | Cliente {row['Nº Cliente (Formato C-xxx)']} | "
-                f"{row['Tipo de prenda']} Talla {row['Talla']} | €{row['Precio']} | "
-                f"{row['Fecha Vendida'].strftime('%d/%m/%Y')}"
-            )
-            pdf.multi_cell(0, 8, texto_fpdf(linea))
+        for _, row in ventas_dia[columnas_ventas].fillna('').iterrows():
+            try:
+                linea = (
+                    f"Prenda {str(row['ID Prenda'])} | Cliente {str(row['Nº Cliente (Formato C-xxx)'])} | "
+                    f"{str(row['Tipo de prenda'])} Talla {str(row['Talla'])} | €{str(row['Precio'])} | "
+                    f"{row['Fecha Vendida'].strftime('%d/%m/%Y') if pd.notnull(row['Fecha Vendida']) else ''}"
+                )
+                pdf.multi_cell(0, 8, texto_fpdf(linea))
+            except Exception as e:
+                pdf.multi_cell(0, 8, texto_fpdf("ERROR AL LEER REGISTRO"))
 
         if not altas_dia.empty:
             pdf.ln(5)
