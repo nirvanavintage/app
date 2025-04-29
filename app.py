@@ -21,18 +21,34 @@ if not st.session_state.authenticated:
         <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
     </div>
     """, unsafe_allow_html=True)
+
     password = st.text_input("Contraseña:", type="password")
     if st.button("🔓 Entrar"):
         if password == "nirvana2025":
             st.session_state.authenticated = True
-            st.experimental_rerun = lambda: st.session_state.update({})
-            st.experimental_rerun()
+            st.experimental_set_query_params(auth="1")  # Simula login
         else:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
 
+# Encabezado
+st.markdown("""
+<h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
+<div style='text-align:center'>
+    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
+    <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
+    <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
+</div>
+""", unsafe_allow_html=True)
+
 # Botón para recargar datos
-st.sidebar.button("🔄 Sincronizar datos desde Google Sheets", on_click=lambda: st.cache_data.clear())
+if st.button("🔄 Sincronizar datos desde Google Sheets"):
+    st.cache_data.clear()
+
+# Menú lateral
+seccion = st.sidebar.selectbox("Secciones", [
+    "Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"
+])
 
 HIDE_COLS_PATTERN = [
     "Marca temporal", "Merged Doc ID", "Merged Doc URL", "Link to merged Doc", "Document Merge Status"
