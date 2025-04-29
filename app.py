@@ -79,7 +79,7 @@ h1 {
     <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>+ Nueva Prenda</a>
     <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>+ Nuevo Cliente</a>
     <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>✔️ Marcar como Vendido</a>
-    <a href='?seccion=Avisos' target='_self'>📩 Avisos</a>
+    
 </div>
 """, unsafe_allow_html=True)
 
@@ -126,7 +126,6 @@ with col2:
     if st.button("🏷️ Generador de Etiquetas"):
         st.session_state.seccion = "Generador de Etiquetas"
 
-
 with col3:
     if st.button("📑 Reporte Diario"):
         st.session_state.seccion = "Reporte Diario"
@@ -134,7 +133,6 @@ with col3:
         st.session_state.seccion = "Gestión de Citas"
     if st.button("📩 Avisos"):
         st.session_state.seccion = "Avisos"
-
 
 
 
