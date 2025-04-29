@@ -172,7 +172,7 @@ elif seccion == "Consultar Stock":
         pdf.cell(0, 10, "Stock de Prendas (filtrado)", ln=True, align='C')
         pdf.ln(5)
 
-        col_widths = [35, 50, 35, 20, 150]  # Aumentado el ancho de Descripción
+        col_widths = [35, 50, 35, 20, 100]  # Aumentado el ancho de Descripción
 
         pdf.set_font("Arial", 'B', 10)
         for i, col in enumerate(columnas_visibles):
