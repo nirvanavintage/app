@@ -96,19 +96,11 @@ elif seccion == "Buscar Cliente":
     if nombre:
         coincidencias = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False)]
         st.dataframe(coincidencias)
-
 # SECCIÓN: Generador de Etiquetas
 if seccion == "Generador de Etiquetas":
     st.markdown("### 🏷️ Generador de Etiquetas")
     cod = st.text_input("Introduce un código de prenda")
     hoy = pd.Timestamp.today().normalize()
-
-    def texto_fpdf(txt):
-        if pd.isna(txt):
-            return ""
-        txt = str(txt)
-        txt = unicodedata.normalize('NFKD', txt)
-        return txt.encode('latin-1', 'ignore').decode('latin-1')
 
     st.markdown("#### 🔹 Generar una sola etiqueta")
     if st.button("Generar etiqueta única") and cod:
@@ -116,15 +108,16 @@ if seccion == "Generador de Etiquetas":
         if not prenda.empty:
             st.dataframe(prenda)
             row = prenda.iloc[0]
-            pdf = FPDF(format=(70, 40))
+            pdf = FPDF(orientation='P', unit='mm', format='A4')
+            pdf.set_auto_page_break(auto=False)
             pdf.add_page()
-            pdf.set_font("Arial", 'B', 18)
-            pdf.set_xy(5, 5)
-            pdf.cell(60, 10, texto_fpdf(f"{row['Precio']} €"), ln=True)
-            pdf.cell(60, 10, texto_fpdf(f"Talla {row['Talla']}"), ln=True)
-            pdf.set_font("Arial", size=10)
-            pdf.cell(60, 10, texto_fpdf(f"Cliente: {row['Nº Cliente (Formato C-xxx)']}"), ln=True)
-            pdf.cell(60, 10, texto_fpdf(f"Prenda: {row['ID Prenda']}"), ln=True)
+            pdf.set_xy(10, 10)
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(70, 8, texto_fpdf(f"€ {row['Precio']}"), ln=2)
+            pdf.cell(70, 8, texto_fpdf(f"Talla {row['Talla']}"), ln=2)
+            pdf.set_font("Arial", '', 10)
+            pdf.cell(70, 6, texto_fpdf(f"Cliente: {row['Nº Cliente (Formato C-xxx)']}"), ln=2)
+            pdf.cell(70, 6, texto_fpdf(f"Prenda: {row['ID Prenda']}"), ln=2)
             buffer = BytesIO()
             pdf.output(buffer)
             buffer.seek(0)
@@ -137,19 +130,31 @@ if seccion == "Generador de Etiquetas":
     if not hoy_vendidas.empty:
         st.dataframe(hoy_vendidas)
         if st.button("Generar PDF con etiquetas del día"):
-            pdf = FPDF(orientation='P', unit='mm', format=(70, 40))
-            for _, row in hoy_vendidas.iterrows():
-                pdf.add_page()
-                pdf.set_font("Arial", 'B', 18)
-                pdf.set_xy(5, 5)
-                pdf.cell(60, 10, texto_fpdf(f"{row['Precio']} €"), ln=True)
-                pdf.cell(60, 10, texto_fpdf(f"Talla {row['Talla']}"), ln=True)
-                pdf.set_font("Arial", size=10)
-                pdf.cell(60, 10, texto_fpdf(f"Cliente: {row['Nº Cliente (Formato C-xxx)']}"), ln=True)
-                pdf.cell(60, 10, texto_fpdf(f"Prenda: {row['ID Prenda']}"), ln=True)
+            etiquetas_por_fila = 2
+            filas_por_pagina = 5
+            etiquetas_por_pagina = etiquetas_por_fila * filas_por_pagina
+            etiqueta_ancho = 70
+            etiqueta_alto = 40
+
+            pdf = FPDF(orientation='P', unit='mm', format='A4')
+            pdf.set_auto_page_break(auto=False)
+
+            for i, (_, row) in enumerate(hoy_vendidas.iterrows()):
+                if i % etiquetas_por_pagina == 0:
+                    pdf.add_page()
+
+                x = 10 + (i % etiquetas_por_fila) * (etiqueta_ancho + 10)
+                y = 10 + ((i // etiquetas_por_fila) % filas_por_pagina) * (etiqueta_alto + 10)
+
+                pdf.set_xy(x, y)
+                pdf.set_font("Arial", 'B', 14)
+                pdf.cell(etiqueta_ancho, 8, texto_fpdf(f"€ {row['Precio']}"), ln=2)
+                pdf.cell(etiqueta_ancho, 8, texto_fpdf(f"Talla {row['Talla']}"), ln=2)
+                pdf.set_font("Arial", '', 10)
+                pdf.cell(etiqueta_ancho, 6, texto_fpdf(f"Cliente: {row['Nº Cliente (Formato C-xxx)']}"), ln=2)
+                pdf.cell(etiqueta_ancho, 6, texto_fpdf(f"Prenda: {row['ID Prenda']}"), ln=2)
+
             buffer = BytesIO()
             pdf.output(buffer)
             buffer.seek(0)
             st.download_button("⬇️ Descargar Todas las Etiquetas", buffer.getvalue(), file_name="etiquetas_vendidas_hoy.pdf")
-    else:
-        st.info("No hay prendas vendidas hoy.")
