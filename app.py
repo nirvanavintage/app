@@ -46,7 +46,7 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         ), axis=1
     )
 
-    df['Recepcion'] = pd.to_datetime(df.get('Fecha de recepcion', pd.NaT), errors='coerce').dt.strftime('%d/%m/%Y')
+    df['Recepcion'] = pd.to_datetime(df.get('Fecha de recepción', pd.NaT), errors='coerce').dt.strftime('%d/%m/%Y')
     precios = pd.to_numeric(df.get('Precio', 0), errors='coerce').fillna(0)
     df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
 
