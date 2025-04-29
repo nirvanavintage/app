@@ -363,112 +363,87 @@ elif seccion == "Generador de Etiquetas":
             )
     else:
         st.info("No hay prendas vendidas hoy para generar etiquetas.")
-
-# --- Reporte Diario ---
 elif seccion == "Reporte Diario":
-    st.title("📊 Reporte Diario")
+    st.header("📅 Reporte Diario")
 
-    def texto_fpdf(texto):
-        return str(texto).encode("latin-1", "replace").decode("latin-1")
+    fecha_reporte = st.date_input("Selecciona la fecha", value=pd.Timestamp.today().date())
+    hoy = pd.to_datetime(fecha_reporte)
 
-    # Selección de fecha
-    fecha_reporte = st.date_input("Selecciona una fecha", pd.Timestamp.today().date())
-    fecha_reporte = pd.Timestamp(fecha_reporte)
+    nuevas_altas = df_clientes[df_clientes["Marca temporal"].dt.normalize() == hoy]
+    prendas_vendidas = df_prendas[df_prendas["Fecha Vendida"].dt.normalize() == hoy]
 
-    # Ventas del día
-    ventas_dia = df_prendas[
-        df_prendas["Fecha Vendida"].dt.normalize() == fecha_reporte.normalize()
-    ].copy()
-
-    # Altas de clientes
-    if "Fecha de alta" in df_clientes.columns:
-        altas_dia = df_clientes[
-            df_clientes["Fecha de alta"].dt.normalize() == fecha_reporte.normalize()
-        ].copy()
-    else:
-        altas_dia = pd.DataFrame(columns=df_clientes.columns)
-
-    # Cálculo de totales
-    total_ganado = ventas_dia["Precio"].sum()
-    comision = (ventas_dia["Precio"] * 0.30).sum()
+    total_ganado = prendas_vendidas["Precio"].sum()
+    comision = (prendas_vendidas["Precio"] * 0.3).sum()
     total_neto = total_ganado - comision
 
-    st.markdown(f"### 💰 Totales del {fecha_reporte.strftime('%d/%m/%Y')}")
     col1, col2, col3 = st.columns(3)
     col1.metric("Total ganado (€)", f"{total_ganado:.2f}")
     col2.metric("Comisión clientes (30%)", f"{comision:.2f}")
     col3.metric("Total neto (€)", f"{total_neto:.2f}")
 
-    # Nuevos clientes
-    st.subheader("🆕 Nuevos Clientes del Día")
-    if not altas_dia.empty:
-        st.dataframe(altas_dia[["ID Cliente", "Nombre", "Email", "Teléfono"]], use_container_width=True)
-    else:
+    st.markdown("### 🆕 Nuevos Clientes del Día")
+    if nuevas_altas.empty:
         st.info("No hay nuevos clientes registrados ese día.")
+    else:
+        st.dataframe(nuevas_altas)
 
-    # Ventas
-    st.subheader("🛍️ Ventas del Día")
-    columnas_ventas = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Tipo de prenda", "Talla", "Precio", "Fecha Vendida"]
-    st.dataframe(ventas_dia[columnas_ventas], use_container_width=True)
+    st.markdown("### 📊 Ventas del Día")
+    if prendas_vendidas.empty:
+        st.warning("No hay ventas registradas ese día.")
+    else:
+        columnas_reporte = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Tipo de prenda", "Talla", "Precio", "Fecha Vendida"]
+        st.dataframe(prendas_vendidas[columnas_reporte])
 
-    # DESCARGAS
-    nombre_archivo = f"reporte_diario_{fecha_reporte.strftime('%Y-%m-%d')}"
+        if st.button("⬇️ Descargar Reporte en Excel"):
+            buffer = BytesIO()
+            with pd.ExcelWriter(buffer) as writer:
+                prendas_vendidas[columnas_reporte].to_excel(writer, index=False, sheet_name="Ventas")
+                nuevas_altas.to_excel(writer, index=False, sheet_name="Nuevos Clientes")
+            buffer.seek(0)
+            nombre_excel = f"reporte_diario_{hoy.strftime('%Y-%m-%d')}.xlsx"
+            st.download_button("Descargar Excel", buffer, file_name=nombre_excel)
 
-    if st.button("⬇️ Descargar Reporte en Excel"):
-        buffer = BytesIO()
-        with pd.ExcelWriter(buffer) as writer:
-            ventas_dia[columnas_ventas].to_excel(writer, index=False, sheet_name="Ventas")
-            if not altas_dia.empty:
-                altas_dia[["ID Cliente", "Nombre", "Email", "Teléfono"]].to_excel(writer, index=False, sheet_name="Altas")
-        buffer.seek(0)
-        st.download_button("Descargar Excel", buffer, file_name=f"{nombre_archivo}.xlsx")
+        if st.button("📄 Descargar Reporte en PDF"):
+            pdf = FPDF(orientation='P', unit='mm', format='A4')
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 16)
+            pdf.cell(0, 10, f"Reporte Diario - {hoy.strftime('%d/%m/%Y')}", ln=True, align='C')
+            pdf.ln(5)
 
-    if st.button("📄 Descargar Reporte en PDF"):
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, texto_fpdf(f"Reporte Diario - {fecha_reporte.strftime('%d/%m/%Y')}"), ln=True)
+            pdf.set_font("Arial", '', 12)
+            pdf.cell(0, 8, f"Total ganado: €{total_ganado:.2f}", ln=True)
+            pdf.cell(0, 8, f"Comisión clientes (30%): €{comision:.2f}", ln=True)
+            pdf.cell(0, 8, f"Total neto: €{total_neto:.2f}", ln=True)
 
-        pdf.set_font("Arial", '', 11)
-        pdf.ln(5)
-        pdf.multi_cell(0, 8, texto_fpdf(
-            f"Total ganado: €{total_ganado:.2f}\n"
-            f"Comisión clientes (30%): €{comision:.2f}\n"
-            f"Total neto: €{total_neto:.2f}"
-        ))
+            pdf.ln(5)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, "Ventas del Día:", ln=True)
+            pdf.set_font("Arial", '', 10)
 
-        pdf.ln(5)
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, texto_fpdf("Ventas del Día:"), ln=True)
-        pdf.set_font("Arial", '', 10)
-
-        for _, row in ventas_dia[columnas_ventas].fillna('').iterrows():
-            try:
+            for _, row in prendas_vendidas.iterrows():
                 linea = (
                     f"Prenda {str(row['ID Prenda'])} | Cliente {str(row['Nº Cliente (Formato C-xxx)'])} | "
                     f"{str(row['Tipo de prenda'])} Talla {str(row['Talla'])} | €{str(row['Precio'])} | "
                     f"{row['Fecha Vendida'].strftime('%d/%m/%Y') if pd.notnull(row['Fecha Vendida']) else ''}"
                 )
-                pdf.multi_cell(0, 8, texto_fpdf(linea))
-            except Exception as e:
-                pdf.multi_cell(0, 8, texto_fpdf("ERROR AL LEER REGISTRO"))
+                safe_line = linea.encode('latin-1', 'replace').decode('latin-1')
+                pdf.multi_cell(0, 8, safe_line)
 
-        if not altas_dia.empty:
-            pdf.ln(5)
+            pdf.ln(4)
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 10, texto_fpdf("Nuevos Clientes del Día:"), ln=True)
+            pdf.cell(0, 8, "Nuevos Clientes del Día:", ln=True)
             pdf.set_font("Arial", '', 10)
 
-            for _, row in altas_dia.iterrows():
-                linea = f"{row['ID Cliente']} - {row['Nombre']} - {row['Email']} - {row['Teléfono']}"
-                pdf.multi_cell(0, 8, texto_fpdf(linea))
+            if nuevas_altas.empty:
+                pdf.cell(0, 8, "No hay nuevos clientes registrados.", ln=True)
+            else:
+                for _, row in nuevas_altas.iterrows():
+                    texto = f"{str(row['Nº Cliente (Formato C-xxx)'])} - {str(row['Nombre'])}"
+                    safe_texto = texto.encode('latin-1', 'replace').decode('latin-1')
+                    pdf.cell(0, 8, safe_texto, ln=True)
 
-        buffer = BytesIO()
-        pdf.output(buffer)
-        buffer.seek(0)
-        st.download_button(
-            label="⬇️ Descargar PDF",
-            data=buffer.getvalue(),
-            file_name=f"{nombre_archivo}.pdf",
-            mime="application/pdf"
-        )
+            buffer = BytesIO()
+            pdf.output(buffer)
+            buffer.seek(0)
+            nombre_pdf = f"reporte_diario_{hoy.strftime('%Y-%m-%d')}.pdf"
+            st.download_button("Descargar PDF", buffer.getvalue(), file_name=nombre_pdf)
