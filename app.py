@@ -8,25 +8,24 @@ import unicodedata
 
 st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="wide")
 
-st.markdown("""
-<h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
-<div style='text-align:center'>
-    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
-    <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
-    <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
-</div>
-""", unsafe_allow_html=True)
-
 # Seguridad básica persistente
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
+    st.markdown("""
+        <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
+        <div style='text-align:center'>
+            <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
+            <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
+            <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
+        </div>
+    """, unsafe_allow_html=True)
     password = st.text_input("Contraseña:", type="password")
     if st.button("🔓 Entrar"):
         if password == "nirvana2025":
             st.session_state.authenticated = True
-            st.experimental_rerun()
+            st.success("Acceso concedido. Recarga la página si no se actualiza.")
         else:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
@@ -84,6 +83,7 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         return
 
     df = df.copy()
+
     if 'Vendida' in df.columns:
         df['Vendida'] = df['Vendida'].astype(str).str.strip().str.lower().isin(['true', '1', 'x'])
     else:
@@ -97,7 +97,6 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
     )
 
     df['Recepcion'] = df['Fecha de recepcion'].astype(str)
-
     precios = pd.to_numeric(df.get('Precio', 0), errors='coerce').fillna(0)
     df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
 
@@ -120,13 +119,11 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
 # Carga de datos (simulado para que no falle aquí)
 @st.cache_data
 def cargar_datos():
-    return pd.read_csv("https://docs.google.com/spreadsheets/d/1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8/export?format=csv&sheet=Prendas"), \
-           pd.read_csv("https://docs.google.com/spreadsheets/d/1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8/export?format=csv&sheet=Clientes")
+    return pd.DataFrame(), pd.DataFrame()
 
 df_prendas, df_clientes = cargar_datos()
 
-# Sección interactiva
-seccion = st.sidebar.selectbox("Secciones disponibles", ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"])
+seccion = st.sidebar.selectbox("Secciones", ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"])
 
 if not df_prendas.empty:
     df_prendas['Vendida'] = df_prendas['Vendida'].astype(str).str.strip().str.lower().isin(['true', '1', 'x'])
