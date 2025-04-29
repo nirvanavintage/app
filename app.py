@@ -33,7 +33,8 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         return
 
     df = df.copy()
-    df['Vendida'] = df.get('Vendida', False).fillna(False)
+    df['Vendida'] = df.get('Vendida').fillna(False).astype(str).str.lower().isin(['true', '1', 'x'])
+
     df['Descripcion'] = df.apply(
         lambda row: (
             f"{row.get('Tipo de prenda', '')}, Talla: {row.get('Talla', '')}, {row.get('Caracteristicas (Color, estampado, material...)', '')}" +
