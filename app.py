@@ -47,9 +47,11 @@ st.title("✨ Nirvana Vintage: Gestión Diaria ✨")
 # --- Buscar Cliente ---
 if seccion == "Buscar Cliente":
     st.header("🔍 Buscar Cliente")
-    nombre = st.text_input("Introduce el nombre del cliente")
+    nombres_disponibles = df_clientes["Nombre y Apellidos"].dropna().unique().tolist()
+    nombre = st.selectbox("Selecciona el cliente", sorted(nombres_disponibles))
     if nombre:
-        resultados = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
+        resultados = df_clientes[df_clientes["Nombre y Apellidos"] == nombre]
+        st.subheader("📄 Datos del Cliente")
         st.dataframe(resultados)
         if not resultados.empty:
             id_cliente = resultados.iloc[0]["ID Cliente"]
@@ -63,14 +65,35 @@ if seccion == "Buscar Cliente":
                 nombre_cliente = resultados.iloc[0]["Nombre y Apellidos"]
                 pdf.cell(0, 10, texto_fpdf(f"Informe de {nombre_cliente}"), ln=True, align='C')
                 pdf.ln(10)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(0, 8, texto_fpdf("Datos del cliente:"), ln=True)
+                for col in ["ID Cliente", "Teléfono", "Email"]:
+                    valor = resultados.iloc[0].get(col, "")
+                    pdf.set_font("Arial", '', 11)
+                    pdf.cell(0, 7, texto_fpdf(f"{col}: {valor}"), ln=True)
+                pdf.ln(5)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(0, 8, texto_fpdf("Prendas entregadas:"), ln=True)
+
+                prendas_cliente = prendas_cliente.sort_values("Fecha de recepción")
+                fecha_actual = None
                 for _, row in prendas_cliente.iterrows():
-                    pdf.set_font("Arial", '', 12)
-                    pdf.cell(0, 8, texto_fpdf(f"Prenda {row['Tipo de prenda']} - Talla {row['Talla']} - {row['Caracteristicas (Color, estampado, material...)']}"), ln=True)
+                    fecha_recepcion = row.get("Fecha de recepción")
+                    if pd.notna(fecha_recepcion):
+                        fecha_str = fecha_recepcion.strftime("%d/%m/%Y")
+                        if fecha_str != fecha_actual:
+                            pdf.ln(5)
+                            pdf.set_font("Arial", 'B', 11)
+                            pdf.cell(0, 7, texto_fpdf(f"Recepción: {fecha_str}"), ln=True)
+                            fecha_actual = fecha_str
+                    pdf.set_font("Arial", '', 10)
+                    descripcion = f"- {row['Tipo de prenda']} | Talla {row['Talla']} | {row['Caracteristicas (Color, estampado, material...)]}".strip()
+                    pdf.cell(0, 6, texto_fpdf(descripcion), ln=True)
+
                 buffer = BytesIO()
                 pdf.output(buffer)
                 buffer.seek(0)
-                st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name="informe_cliente.pdf")
-
+                st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
 # --- Consultar Stock ---
 elif seccion == "Consultar Stock":
     st.header("📦 Prendas en Stock")
