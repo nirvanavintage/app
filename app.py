@@ -17,11 +17,6 @@ if 'authenticated' not in st.session_state:
 if not st.session_state.authenticated:
     st.markdown("""
     <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
-    <div style='text-align:center'>
-        <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
-        <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
-        <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
-    </div>
     """, unsafe_allow_html=True)
 
     password = st.text_input("Contraseña:", type="password")
