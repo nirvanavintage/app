@@ -14,25 +14,25 @@ if 'authenticated' not in st.session_state:
 
 if not st.session_state.authenticated:
     st.markdown("""
-        <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
-        <div style='text-align:center'>
-            <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
-            <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
-            <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
-        </div>
+    <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
+    <div style='text-align:center'>
+        <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
+        <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
+        <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
+    </div>
     """, unsafe_allow_html=True)
     password = st.text_input("Contraseña:", type="password")
     if st.button("🔓 Entrar"):
         if password == "nirvana2025":
             st.session_state.authenticated = True
-            st.success("Acceso concedido. Recarga la página si no se actualiza.")
+            st.experimental_rerun = lambda: st.session_state.update({})
+            st.experimental_rerun()
         else:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
 
 # Botón para recargar datos
-if st.button("🔄 Sincronizar datos desde Google Sheets"):
-    st.cache_data.clear()
+st.sidebar.button("🔄 Sincronizar datos desde Google Sheets", on_click=lambda: st.cache_data.clear())
 
 HIDE_COLS_PATTERN = [
     "Marca temporal", "Merged Doc ID", "Merged Doc URL", "Link to merged Doc", "Document Merge Status"
@@ -97,6 +97,7 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
     )
 
     df['Recepcion'] = df['Fecha de recepcion'].astype(str)
+
     precios = pd.to_numeric(df.get('Precio', 0), errors='coerce').fillna(0)
     df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
 
@@ -116,12 +117,20 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         pdf.ln()
     pdf.ln(5)
 
-# Carga de datos (simulado para que no falle aquí)
 @st.cache_data
 def cargar_datos():
     return pd.DataFrame(), pd.DataFrame()
 
 df_prendas, df_clientes = cargar_datos()
+
+st.markdown("""
+<h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
+<div style='text-align:center'>
+    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
+    <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
+    <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
+</div>
+""", unsafe_allow_html=True)
 
 seccion = st.sidebar.selectbox("Secciones", ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"])
 
@@ -150,3 +159,35 @@ if not df_prendas.empty:
             vendidos = vendidos[vendidos[f].astype(str).isin(seleccion)]
         st.dataframe(vendidos, use_container_width=True)
         st.download_button("📥 Descargar CSV", vendidos.to_csv(index=False).encode(), file_name="vendidos.csv")
+
+    elif seccion == "Buscar Cliente":
+        st.subheader("🔎 Buscar Cliente")
+        nombre = st.text_input("Introduce nombre o apellidos del cliente")
+        if nombre:
+            clientes_match = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
+            if clientes_match.empty:
+                st.warning("No se encontraron coincidencias.")
+            else:
+                st.success(f"Se encontraron {len(clientes_match)} cliente(s)")
+                st.dataframe(limpiar_df(clientes_match), use_container_width=True)
+
+                cliente = clientes_match.iloc[0].to_dict()
+                ids = clientes_match["ID Cliente"].unique()
+                prendas_cliente = df_limpio[df_limpio["Nº Cliente (Formato C-xxx)"].isin(ids)]
+                st.subheader("👜 Prendas del cliente")
+                st.dataframe(prendas_cliente, use_container_width=True)
+
+                if st.button("📄 PDF Informe del Cliente"):
+                    prendas_ventas = prendas_cliente[prendas_cliente['Vendida'] == True]
+                    prendas_stock = prendas_cliente[prendas_cliente['Vendida'] != True]
+
+                    pdf = PDFCustom()
+                    pdf.add_page()
+                    exportar_datos_cliente(pdf, cliente)
+                    exportar_descripcion_pdf(pdf, prendas_ventas, "🟢 Prendas Vendidas")
+                    exportar_descripcion_pdf(pdf, prendas_stock, "🟡 Prendas en stock")
+
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                        pdf.output(tmp.name)
+                        tmp.seek(0)
+                        st.download_button("📄 Descargar PDF Informe Cliente", tmp.read(), file_name=f"informe_cliente_{cliente['ID Cliente']}.pdf", mime="application/pdf")
