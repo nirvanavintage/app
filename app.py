@@ -417,28 +417,26 @@ elif seccion == "Reporte Diario":
             file_name=f"reporte_diario_{hoy.date()}.xlsx"
         )
 
-    # --- Exportar PDF ---
-    # --- Exportar PDF ---
+    
     if st.button("Descargar Reporte en PDF"):
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
-        titulo = f"Reporte Diario - {hoy.date()}"
-        pdf.cell(0, 10, titulo.encode("latin-1", "replace").decode("latin-1"), ln=True, align='C')
+        pdf.set_font("Helvetica", size=12)
+    
+        pdf.set_font(style="B", size=16)
+        pdf.cell(0, 10, f"📑 Reporte Diario - {hoy.date()}", ln=True, align="C")
         pdf.ln(10)
     
-        pdf.set_font("Arial", '', 12)
-        linea1 = f"Total ganado: EUR {total_ganado:.2f}"
-        linea2 = f"Comisión clientes (30%): EUR {comision_clientes:.2f}"
-        linea3 = f"Total neto: EUR {total_neto:.2f}"
-        pdf.cell(0, 8, linea1.encode("latin-1", "replace").decode("latin-1"), ln=True)
-        pdf.cell(0, 8, linea2.encode("latin-1", "replace").decode("latin-1"), ln=True)
-        pdf.cell(0, 8, linea3.encode("latin-1", "replace").decode("latin-1"), ln=True)
+        pdf.set_font(style="", size=12)
+        pdf.cell(0, 8, f"💰 Total ganado: EUR {total_ganado:.2f}", ln=True)
+        pdf.cell(0, 8, f"👛 Comisión clientes (30%): EUR {comision_clientes:.2f}", ln=True)
+        pdf.cell(0, 8, f"📈 Total neto: EUR {total_neto:.2f}", ln=True)
         pdf.ln(8)
     
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 8, "Ventas del Día:", ln=True)
-        pdf.set_font("Arial", '', 10)
+        pdf.set_font(style="B", size=12)
+        pdf.cell(0, 8, "🛍️ Ventas del Día:", ln=True)
+        pdf.set_font(size=10)
+    
         for _, row in ventas_dia[columnas_visibles].iterrows():
             try:
                 id_prenda = str(row.get("ID Prenda", ""))
@@ -446,30 +444,27 @@ elif seccion == "Reporte Diario":
                 tipo = str(row.get("Tipo de prenda", ""))
                 talla = str(row.get("Talla", ""))
                 precio = str(row.get("Precio", ""))
-                fecha = row.get("Fecha Vendida")
-                fecha_str = pd.to_datetime(fecha, errors='coerce')
-                fecha_str = fecha_str.date().isoformat() if pd.notna(fecha_str) else "Fecha inválida"
+                fecha = pd.to_datetime(row.get("Fecha Vendida", ""), errors='coerce')
+                fecha_str = fecha.date().isoformat() if pd.notna(fecha) else "Fecha inválida"
     
                 linea = f"- {id_prenda} | Cliente: {cliente} | {tipo} Talla {talla} | EUR {precio} | {fecha_str}"
-                linea = linea.encode("latin-1", "replace").decode("latin-1")
                 pdf.multi_cell(0, 8, linea)
-            except Exception:
-                pdf.multi_cell(0, 8, "Error al mostrar una venta".encode("latin-1", "replace").decode("latin-1"))
+            except:
+                pdf.multi_cell(0, 8, "⚠️ Error al mostrar una venta.")
     
         pdf.ln(8)
     
         if not nuevas_altas.empty:
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, "Altas de nuevos clientes:", ln=True)
-            pdf.set_font("Arial", '', 10)
+            pdf.set_font(style="B", size=12)
+            pdf.cell(0, 8, "🆕 Altas de nuevos clientes:", ln=True)
+            pdf.set_font(size=10)
             for _, row in nuevas_altas.iterrows():
                 try:
                     linea = " - ".join([f"{col}: {str(row[col])}" for col in nuevas_altas.columns if pd.notna(row[col])])
-                    linea = linea.encode("latin-1", "replace").decode("latin-1")
                     pdf.multi_cell(0, 8, linea)
                     pdf.ln(1)
-                except Exception:
-                    pdf.multi_cell(0, 8, "Error al mostrar un cliente".encode("latin-1", "replace").decode("latin-1"))
+                except:
+                    pdf.multi_cell(0, 8, "⚠️ Error al mostrar un cliente.")
     
         buffer = BytesIO()
         pdf.output(buffer)
