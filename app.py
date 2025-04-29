@@ -39,14 +39,17 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
     else:
         df['Vendida'] = False
 
+    # la descripción debe respetar si el bloque ya es "vendido" o "stock"
+    es_bloque_vendido = "vendida" in titulo_bloque.lower()
+
     df['Descripcion'] = df.apply(
         lambda row: (
             f"{row.get('Tipo de prenda', '')}, Talla: {row.get('Talla', '')}, {row.get('Caracteristicas (Color, estampado, material...)', '')}" +
-            (f" | ✔ {row.get('Fecha Vendida') or ''}" if row.get('Vendida') else " | ✖ No vendida")
+            (f" | ✔ {row.get('Fecha Vendida') or ''}" if es_bloque_vendido else " | ✖ No vendida")
         ), axis=1
     )
 
-    df['Recepcion'] = pd.to_datetime(df.get('Fecha de recepción', pd.NaT), errors='coerce').dt.strftime('%d/%m/%Y')
+    df['Recepcion'] = pd.to_datetime(df.get('Fecha de recepcion', pd.NaT), errors='coerce').dt.strftime('%d/%m/%Y')
     precios = pd.to_numeric(df.get('Precio', 0), errors='coerce').fillna(0)
     df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
 
