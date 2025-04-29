@@ -6,19 +6,12 @@ from datetime import datetime
 from fpdf import FPDF
 import unicodedata
 
-# =====================
-# Configuración general
-# =====================
-
 st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="wide")
+
 HIDE_COLS_PATTERN = [
     "Marca temporal",
     "Merged Doc ID", "Merged Doc URL", "Link to merged Doc", "Document Merge Status"
 ]
-
-# =====================
-# Funciones auxiliares
-# =====================
 
 def limpiar_df(df: pd.DataFrame) -> pd.DataFrame:
     cols_a_quitar = [c for c in df.columns for pat in HIDE_COLS_PATTERN if pat.lower() in c.lower()]
@@ -33,57 +26,7 @@ def clean_text(text):
         return str(text)
 
 def df_to_pdf(df, titulo, nombre_archivo):
-    cols_mostrar = [c for c in df.columns if c not in [
-        "Marca temporal",
-        *df.columns[df.columns.str.startswith("Merged Doc")]
-    ]]
-    df = df[cols_mostrar]
-
-    pdfkit_usable = False
-    try:
-        import pdfkit
-        if os.path.exists('/usr/bin/wkhtmltopdf'):
-            config = pdfkit.configuration(wkhtmltopdf='/usr/bin/wkhtmltopdf')
-            pdfkit_usable = True
-    except Exception:
-        pdfkit_usable = False
-
-    if pdfkit_usable:
-        try:
-            css = """
-            <style>
-              body { font-family: Arial, sans-serif; }
-              h2   { text-align:center; }
-              table { border-collapse:collapse; width:100%; font-size:10px; }
-              th, td { border:1px solid #666; padding:4px; }
-              th { background:#eee; }
-            </style>
-            """
-            html = f"<h2>{titulo}</h2>" + df.to_html(index=False)
-            full_html = f"<html><head>{css}</head><body>{html}</body></html>"
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                pdfkit.from_string(full_html, tmp.name,
-                                   configuration=config,
-                                   options={"page-size": "A4",
-                                            "orientation": "Landscape",
-                                            "margin-top": "8mm",
-                                            "margin-bottom": "8mm",
-                                            "margin-left": "8mm",
-                                            "margin-right": "8mm"})
-                tmp.seek(0)
-                st.download_button(
-                    "📄 Descargar PDF",
-                    tmp.read(),
-                    file_name=nombre_archivo,
-                    mime="application/pdf"
-                )
-                os.unlink(tmp.name)
-            return
-        except Exception as e:
-            st.warning(f"No se pudo generar PDF bonito: {e}. Usando método alternativo.")
-
-    # Backup con FPDF2
+    df = limpiar_df(df)
     pdf = FPDF(orientation="L")
     pdf.add_page()
     pdf.set_font("Helvetica", size=10)
@@ -104,16 +47,16 @@ def df_to_pdf(df, titulo, nombre_archivo):
         pdf.output(tmp.name)
         tmp.seek(0)
         st.download_button(
-            "📄 Descargar PDF (simple)",
+            "📄 Descargar PDF",
             tmp.read(),
             file_name=nombre_archivo,
             mime="application/pdf"
         )
         os.unlink(tmp.name)
 
-# ========================
-# Encabezado y navegación
-# ========================
+# =========
+# Encabezado
+# =========
 
 st.markdown("""
 <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
@@ -125,16 +68,16 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ===============
-# Menú personalizado
+# Menú
 # ===============
+
 st.sidebar.markdown("""
-    <style>
-    .sidebar .sidebar-content {
-        padding: 2rem 1rem;
-    }
-    .sidebar .css-1d391kg { font-size: 20px; font-weight: bold; }
-    .sidebar .stSelectbox > div { font-size: 18px; }
-    </style>
+<style>
+.sidebar .sidebar-content {
+    padding: 2rem 1rem;
+}
+.sidebar .stSelectbox > div { font-size: 18px; }
+</style>
 """, unsafe_allow_html=True)
 
 menu_options = [
@@ -148,9 +91,9 @@ menu_options = [
 
 seccion = st.sidebar.selectbox("🪄 Secciones disponibles:", menu_options, index=0)
 
-# ========================
+# =============
 # Cargar datos
-# ========================
+# =============
 
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
@@ -170,9 +113,9 @@ if "Vendida" in df_prendas.columns:
 
 prendas_limpio = limpiar_df(df_prendas)
 
-# ========================
-# Secciones funcionales
-# ========================
+# =============
+# Secciones
+# =============
 
 if seccion == "Buscar Cliente":
     nombre = st.text_input("Nombre cliente")
@@ -207,7 +150,7 @@ elif seccion == "Generar Avisos de Hoy":
 elif seccion == "Reporte Diario":
     hoy = pd.Timestamp.today().normalize()
     stock = prendas_limpio[~df_prendas["Vendida"]]
-    vendidos_hoy = prendas_limpio[(df_prendas["Vendida"]) & (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.normalize() == hoy)] if "Fecha Vendida" in df_prendas else pd.DataFrame()
+    vendidos_hoy = prendas_limpio[df_prendas["Vendida"] & (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.normalize() == hoy)]
     avisos_hoy = prendas_limpio[pd.to_datetime(df_prendas["Fecha Aviso"], errors="coerce").dt.normalize() == hoy]
 
     st.markdown("## Avisos de Hoy")
@@ -222,15 +165,15 @@ elif seccion == "Reporte Diario":
     if st.button("📄 PDF Reporte Diario"):
         fecha = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         titulo = f"Reporte Diario – {datetime.today().date().isoformat()}"
-        df_full = pd.concat([
-            pd.DataFrame({"__SECCIÓN__": ["Avisos de Hoy"]}),
+        df_comb = pd.concat([
+            pd.DataFrame([["Avisos de Hoy"]], columns=["SECCIÓN"]),
             avisos_hoy,
-            pd.DataFrame({"__SECCIÓN__": ["Ventas de Hoy"]}),
+            pd.DataFrame([["Ventas de Hoy"]], columns=["SECCIÓN"]),
             vendidos_hoy,
-            pd.DataFrame({"__SECCIÓN__": ["Stock Actual"]}),
+            pd.DataFrame([["Stock Actual"]], columns=["SECCIÓN"]),
             stock
-        ])
-        df_to_pdf(df_full, titulo, f"reporte_{fecha}.pdf")
+        ], ignore_index=True)
+        df_to_pdf(df_comb, titulo, f"reporte_{fecha}.pdf")
 
 elif seccion == "Informe Cliente por Entregas":
     nombre = st.text_input("Nombre cliente")
