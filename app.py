@@ -135,7 +135,8 @@ elif seccion == "Consultar Stock":
 
     # Filtros
     with st.expander("⚙️ Filtros"):
-        columnas_filtro = ["Talla", "Tipo de prenda", "Marca", "¿Donación o devolución?"]
+        columnas_filtro = [col for col in ["Talla", "Tipo de prenda", "Marca", "¿Donación o devolución?"] if col in stock.columns]
+
         filtros = {}
         for columna in columnas_filtro:
             opciones = stock[columna].dropna().unique().tolist()
