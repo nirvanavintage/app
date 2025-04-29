@@ -21,17 +21,27 @@ if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    st.markdown("""
-    <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
-    """, unsafe_allow_html=True)
+    st.markdown("""<h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>""", unsafe_allow_html=True)
 
-    password = st.text_input("Contraseña:", type="password")
+    col1, col2 = st.columns(2)
+    with col1:
+        password = st.text_input("Contraseña:", type="password")
+    with col2:
+        link_sheet = st.text_input("Pega aquí el enlace de Google Sheets")
+
     if st.button("🔓 Entrar"):
-        if password == "nirvana2025":
-            st.session_state.authenticated = True
-            st.rerun()
+        if password == "nirvana2025" and "docs.google.com/spreadsheets" in link_sheet:
+            # Extraer el ID del enlace
+            import re
+            match = re.search(r"/d/([a-zA-Z0-9-_]+)", link_sheet)
+            if match:
+                st.session_state.sheet_id = match.group(1)
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.warning("El enlace no es válido. Asegúrate de copiarlo directamente desde la barra del navegador.")
         else:
-            st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
+            st.warning("Contraseña o enlace incorrecto.")
     st.stop()
 # Mejor diseño: título + botones + protección del valor seccion
 st.markdown("""
@@ -119,7 +129,8 @@ if not st.session_state.seccion:
 # Asignar valor actual
 seccion = st.session_state.seccion
 # Datos
-SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
+SHEET_ID = st.session_state.get("sheet_id", "")
+
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 
 
