@@ -292,19 +292,21 @@ elif seccion == "Generador de Etiquetas":
             st.dataframe(prenda)
             row = prenda.iloc[0]
 
-            pdf = FPDF(orientation='P', unit='mm', format=(50, 30))  # Tamaño tipo etiqueta
+            pdf = FPDF(orientation='P', unit='mm', format=(50, 30))  # Tamaño etiqueta pequeña
             pdf.add_page()
+            pdf.set_auto_page_break(False)
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, texto_fpdf(f"€ {row.get('Precio', '')}"), ln=1, align='C')
-            pdf.cell(0, 8, texto_fpdf(f"Talla {row.get('Talla', '')}"), ln=1, align='C')
+            
+            # Centrado vertical manual
+            top_margin = 4
+            pdf.set_y(top_margin)
+            
+            pdf.cell(0, 7, texto_fpdf(f"€ {row.get('Precio', '')}"), ln=1, align='C')
+            pdf.cell(0, 6, texto_fpdf(f"Talla {row.get('Talla', '')}"), ln=1, align='C')
+            
             pdf.set_font("Arial", '', 9)
-            pdf.cell(0, 6, texto_fpdf(f"Cliente: {row.get('Nº Cliente (Formato C-xxx)', '')}"), ln=1, align='C')
-            pdf.cell(0, 6, texto_fpdf(f"Prenda: {row.get('ID Prenda', '')}"), ln=1, align='C')
-
-            buffer = BytesIO()
-            pdf.output(buffer)
-            buffer.seek(0)
-            st.download_button("⬇️ Descargar Etiqueta", buffer.getvalue(), file_name=f"etiqueta_{cod}.pdf")
+            pdf.cell(0, 5, texto_fpdf(f"Cliente: {row.get('Nº Cliente (Formato C-xxx)', '')}"), ln=1, align='C')
+            pdf.cell(0, 5, texto_fpdf(f"Prenda: {row.get('ID Prenda', '')}"), ln=1, align='C')
 
     st.markdown("#### 🔹 Generar etiquetas de productos recibidos hoy")
     hoy_recibidas = df_prendas[df_prendas["Fecha de recepción"].dt.normalize() == hoy]
