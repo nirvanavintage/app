@@ -26,32 +26,32 @@ def clean_text(text):
 
 def exportar_descripcion_pdf(pdf, df, titulo_bloque):
     pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 8, titulo_bloque, ln=True)
+    pdf.cell(0, 8, clean_text(titulo_bloque), ln=True)
     pdf.set_font("Helvetica", size=8)
     if df.empty:
         pdf.cell(0, 6, "Sin datos.", ln=True)
     else:
         df = df.copy()
-        df['Descripción'] = (
+        df['Descripcion'] = (
             df['Tipo de prenda'].fillna('') +
             ', Talla: ' + df['Talla'].fillna('') +
-            ', ' + df['Características (Color, estampado, material...)'].fillna('') +
+            ', ' + df['Caracteristicas (Color, estampado, material...)'].fillna('') +
             df.apply(lambda row: f" | {'✔ ' + str(row['Fecha Vendida']) if str(row['Vendida']).strip().lower() == 'true' else '✖ No vendida'}", axis=1)
         )
-        df['Recepción'] = pd.to_datetime(df['Fecha de recepción'], errors='coerce').dt.strftime('%d/%m/%Y')
-        df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).map(lambda x: f"{x:,.0f} €".replace(",", "."))
-        export_df = df[['Recepción', 'Descripción', 'Precio']].astype(str).fillna("")
+        df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
+        df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).map(lambda x: f"{int(x)} €")
+        export_df = df[['Recepcion', 'Descripcion', 'Precio']].astype(str).fillna("")
 
         col_w = [30, 180, 25]
-        headers = ['Recepción', 'Descripción', 'Precio']
+        headers = ['Recepcion', 'Descripcion', 'Precio']
         for i, col in enumerate(headers):
             pdf.cell(col_w[i], 6, clean_text(col), border=1)
         pdf.ln()
         for _, row in export_df.iterrows():
-            pdf.cell(col_w[0], 6, clean_text(row['Recepción']), border=1)
+            pdf.cell(col_w[0], 6, clean_text(row['Recepcion']), border=1)
             x = pdf.get_x()
             y = pdf.get_y()
-            pdf.multi_cell(col_w[1], 6, clean_text(row['Descripción']), border=1)
+            pdf.multi_cell(col_w[1], 6, clean_text(row['Descripcion']), border=1)
             pdf.set_xy(x + col_w[1], y)
             pdf.cell(col_w[2], 6, clean_text(row['Precio']), border=1)
             pdf.ln()
@@ -65,15 +65,15 @@ def generar_pdf_prendas(df, titulo):
     pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
     pdf.ln(5)
     exportar_descripcion_pdf(pdf, df, "Listado")
-    total = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).sum()
+    total = pd.to_numeric(df['Precio'].str.replace(" €", ""), errors='coerce').fillna(0).sum()
     pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 8, f"💰 Total vendido: {total:,.0f} €".replace(",", "."), ln=True)
+    pdf.cell(0, 8, clean_text(f"Total prendas: {len(df)} | Total vendido: {int(total)} €"), ln=True)
     return pdf
 
 st.markdown("""
 <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
 <div style='text-align:center'>
-    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>🗕 Nueva Prenda</a> |
+    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
     <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
     <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
 </div>
@@ -87,7 +87,7 @@ menu_options = [
     "Reporte Diario"
 ]
 
-seccion = st.sidebar.selectbox("🪤 Secciones disponibles:", menu_options, index=0)
+seccion = st.sidebar.selectbox("🪄 Secciones disponibles:", menu_options, index=0)
 
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
@@ -125,13 +125,13 @@ if seccion == "Buscar Cliente":
                 nombre_cliente = clientes_match.iloc[0]["Nombre y Apellidos"]
                 idc = clientes_match.iloc[0]["ID Cliente"]
                 titulo = f"Informe del cliente {idc} – {nombre_cliente}"
+                prendas_ventas = prendas_cliente[prendas_cliente['Vendida'] == True]
+                prendas_stock = prendas_cliente[prendas_cliente['Vendida'] != True]
                 pdf = FPDF(orientation="L", unit="mm", format="A4")
                 pdf.add_page()
                 pdf.set_font("Helvetica", "B", 14)
                 pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
                 pdf.ln(4)
-                prendas_ventas = prendas_cliente[prendas_cliente['Vendida'] == True]
-                prendas_stock = prendas_cliente[prendas_cliente['Vendida'] != True]
                 exportar_descripcion_pdf(pdf, prendas_ventas, "🟢 Prendas Vendidas")
                 exportar_descripcion_pdf(pdf, prendas_stock, "🟡 Prendas en stock")
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
