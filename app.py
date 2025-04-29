@@ -103,7 +103,8 @@ if "seccion" not in st.session_state:
     st.session_state.seccion = ""
 
 # Captura de parámetro de URL (permite abrir "Avisos" en nueva pestaña)
-query_params = st.experimental_get_query_params()
+query_params = st.query_params
+
 seccion_query = query_params.get("seccion", [""])[0].strip().lower()
 if seccion_query == "avisos":
     st.session_state.seccion = "Avisos"
@@ -129,12 +130,14 @@ with col3:
     if st.button("📅 Gestión de Citas"):
         st.session_state.seccion = "Gestión de Citas"
 
-# Botón fijo en cabecera para "Avisos"
-st.markdown("""
-<div style='position: absolute; top: 25px; right: 25px;'>
-    <a href='?seccion=avisos' target='_blank' style='padding: 8px 18px; background-color: #ffe082; color: black; border-radius: 10px; font-weight: bold; text-decoration: none; border: 1px solid #aaa;'>📩 Avisos</a>
+# Botón fijo de acceso a la sección "Avisos"
+avisos_url = f"{st.request.base_url}?seccion=avisos"
+st.markdown(f"""
+<div style='position: fixed; top: 20px; right: 25px; z-index:9999'>
+    <a href="{avisos_url}" style='padding: 8px 18px; background-color: #ffe082; color: black; border-radius: 10px; font-weight: bold; text-decoration: none; border: 1px solid #aaa;'>📩 Avisos</a>
 </div>
 """, unsafe_allow_html=True)
+
 
 if not st.session_state.seccion:
     st.info("Selecciona una sección para comenzar.")
@@ -556,8 +559,7 @@ elif seccion == "Reporte Diario":
         pdf.output(buffer)
         buffer.seek(0)
         st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name=f"reporte_diario_{hoy.date()}.pdf")
-
-elif seccion == "📩 Avisos":
+elif seccion == "Avisos":
     st.header("📩 Avisos a Clientes")
 
     fecha_objetivo = st.date_input("Selecciona la fecha para los avisos", pd.Timestamp.today())
@@ -575,15 +577,18 @@ elif seccion == "📩 Avisos":
             cliente_info = df_clientes[df_clientes["ID Cliente"] == id_cliente].squeeze()
             nombre = cliente_info.get("Nombre y Apellidos", "Desconocido")
             telefono = cliente_info.get("Teléfono", "No disponible")
+            prenda = row.get("Tipo de prenda", "")
+            talla = row.get("Talla", "")
 
+            mensaje = f"Hola {nombre}, tu prenda ({prenda} talla {talla}) está a punto de caducar. ¿Deseas donarla o pasar a recogerla?"
             st.markdown(f"""
             🔔 **Cliente:** {nombre}  
             📞 **Teléfono:** {telefono}  
-            👕 **Prenda:** {row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')}
-
-            💬 **Mensaje sugerido:**  
-            _Hola {nombre}, tu prenda está a punto de caducar. ¿Deseas donarla o pasar a recogerla?_
+            👕 **Prenda:** {prenda} | Talla {talla}  
+            💬 **Mensaje sugerido:**
             """)
+            st.code(mensaje)
+            st.button(f"📋 Copiar mensaje para {nombre}", key=f"copy_{id_cliente}")
             st.divider()
     else:
         st.info("No hay prendas con aviso para esa fecha.")
@@ -597,22 +602,28 @@ elif seccion == "📩 Avisos":
     if not nuevos.empty:
         for _, cliente in nuevos.iterrows():
             idc = cliente["ID Cliente"]
+            nombre = cliente.get("Nombre y Apellidos", "Sin nombre")
+            telefono = cliente.get("Teléfono", "Sin número")
             prendas_cliente = df_prendas[df_prendas["Nº Cliente (Formato C-xxx)"] == idc]
 
+            mensaje = f"Hola {nombre}, gracias por traer tus prendas a Nirvana. Aquí tienes tu ficha con lo que has entregado."
             st.markdown(f"""
-            👤 **Nombre:** {cliente.get("Nombre y Apellidos", "Sin nombre")}  
-            📞 **Teléfono:** {cliente.get("Teléfono", "Sin número")}
-
-            💬 **Mensaje sugerido:**  
-            _Hola {cliente.get("Nombre y Apellidos", "")}, gracias por traer tus prendas a Nirvana. Aquí tienes tu ficha con lo que has entregado._
-
-            **Resumen de prendas entregadas:**
+            👤 **Nombre:** {nombre}  
+            📞 **Teléfono:** {telefono}  
+            💬 **Mensaje sugerido:**
             """)
+            st.code(mensaje)
+            st.button(f"📋 Copiar mensaje para {idc}", key=f"copy_new_{idc}")
 
-            for _, prenda in prendas_cliente.iterrows():
-                st.markdown(f"- {prenda.get('Tipo de prenda', '')}, Talla {prenda.get('Talla', '')}, recibida el {prenda.get('Fecha de recepción', '')}")
-
+            if not prendas_cliente.empty:
+                st.markdown("**Resumen de prendas entregadas:**")
+                for _, prenda in prendas_cliente.iterrows():
+                    tipo = prenda.get("Tipo de prenda", "")
+                    talla = prenda.get("Talla", "")
+                    fecha_rec = prenda.get("Fecha de recepción", "")
+                    st.markdown(f"- {tipo}, Talla {talla}, recibida el {fecha_rec}")
+            else:
+                st.markdown("_No hay prendas asociadas._")
             st.divider()
     else:
         st.info("No hay nuevos clientes registrados ese día.")
-
