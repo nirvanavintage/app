@@ -4,6 +4,8 @@ import tempfile
 import os
 from datetime import datetime
 from fpdf import FPDF
+from io import BytesIO
+import xlsxwriter
 
 st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="wide")
 
@@ -30,7 +32,7 @@ if not st.session_state.authenticated:
             st.warning("Contraseña incorrecta. Inténtalo de nuevo.")
     st.stop()
 
-# Encabezado y enlaces
+# Encabezado
 st.markdown("""
 <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
 <div style='text-align:center'>
@@ -40,16 +42,15 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Botón para recargar datos
+# Botón sincronizar
 if st.button("🔄 Sincronizar datos desde Google Sheets"):
     st.cache_data.clear()
     st.rerun()
 
-# Menú lateral
-seccion = st.sidebar.selectbox("Secciones", [
-    "Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"])
+# Sidebar
+seccion = st.sidebar.selectbox("Secciones", ["Buscar Cliente", "Consultar Stock", "Consultar Vendidos", "Reporte Diario"])
 
-# Cargar datos desde Google Sheets
+# Datos
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 
@@ -60,36 +61,40 @@ def cargar(sheet):
 try:
     df_prendas = cargar("Prendas")
     df_clientes = cargar("Clientes")
-except Exception as e:
+except:
     st.error("❌ No se pudieron cargar los datos.")
     st.stop()
 
-# Normalizar campo Vendida
 if df_prendas["Vendida"].dtype != bool:
     df_prendas["Vendida"] = df_prendas["Vendida"].fillna(False).astype(str).str.lower().isin(["true", "1", "yes", "x"])
 
-# Secciones
 if seccion == "Buscar Cliente":
     nombre = st.text_input("🔍 Introduce el nombre del cliente")
     if nombre:
-        coincidencias = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
-        st.dataframe(coincidencias, use_container_width=True)
+        resultados = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
+        st.dataframe(resultados, use_container_width=True)
 
 elif seccion == "Consultar Stock":
     stock = df_prendas[df_prendas["Vendida"] == False]
     st.dataframe(stock, use_container_width=True)
-    st.download_button("⬇️ Descargar Stock", stock.to_csv(index=False), file_name="stock.csv")
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        stock.to_excel(writer, index=False, sheet_name="Stock")
+    st.download_button("⬇️ Descargar Stock (Excel)", output.getvalue(), file_name="stock.xlsx")
 
 elif seccion == "Consultar Vendidos":
     vendidos = df_prendas[df_prendas["Vendida"] == True]
     st.dataframe(vendidos, use_container_width=True)
-    st.download_button("⬇️ Descargar Vendidos", vendidos.to_csv(index=False), file_name="vendidos.csv")
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        vendidos.to_excel(writer, index=False, sheet_name="Vendidos")
+    st.download_button("⬇️ Descargar Vendidos (Excel)", output.getvalue(), file_name="vendidos.xlsx")
 
 elif seccion == "Reporte Diario":
     fecha = st.date_input("Selecciona una fecha para el reporte", value=datetime.today())
     fecha_dt = pd.to_datetime(fecha)
     df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce")
-    vendidos_dia = df_prendas[(df_prendas["Vendida"]) & (df_prendas["Fecha Vendida"].dt.date == fecha_dt.date())]
+    vendidos_dia = df_prendas[df_prendas["Vendida"] & (df_prendas["Fecha Vendida"].dt.date == fecha_dt.date())]
     st.subheader(f"✅ Prendas Vendidas el {fecha_dt.strftime('%d/%m/%Y')} ({len(vendidos_dia)})")
     st.dataframe(vendidos_dia, use_container_width=True)
 
@@ -106,10 +111,11 @@ elif seccion == "Reporte Diario":
 
         total = 0
         for _, row in vendidos_dia.iterrows():
-            desc = f"{row['Tipo de prenda']}, Talla: {row['Talla']}, {row['Caracteristicas (Color, estampado, material...)']}"
+            talla = str(row['Talla']) if pd.notna(row['Talla']) else ""
+            desc = f"{row['Tipo de prenda']}, Talla: {talla}, {row.get('Caracteristicas (Color, estampado, material...)', '')}"
             precio = pd.to_numeric(row['Precio'], errors='coerce')
             total += 0 if pd.isna(precio) else precio
-            pdf.cell(0, 10, desc, ln=True)
+            pdf.cell(0, 10, desc.strip(), ln=True)
 
         pdf.ln(5)
         pdf.set_font("Helvetica", "B", 12)
