@@ -37,10 +37,7 @@ if not st.session_state.authenticated:
                 st.session_state.sheet_id = match.group(1)
                 st.session_state.authenticated = True
                 # ⚠️ Recuperamos la sección si había parámetro
-                query_params = st.query_params
-                seccion_query = query_params.get("seccion", [""])[0].strip().lower()
-                if seccion_query == "avisos":
-                    st.session_state.seccion = "Avisos"
+                
                 st.rerun()
 
             else:
@@ -107,10 +104,7 @@ except:
     st.error("❌ No se pudieron cargar los datos.")
     st.stop()
 
-query_params = st.query_params
-seccion_query = query_params.get("seccion", [""])[0].strip().lower()
-if seccion_query == "avisos":
-    st.session_state.seccion = "Avisos"
+
 
 # Sección inicializada para evitar NameError
 if "seccion" not in st.session_state:
@@ -132,11 +126,15 @@ with col2:
     if st.button("🏷️ Generador de Etiquetas"):
         st.session_state.seccion = "Generador de Etiquetas"
 
+
 with col3:
     if st.button("📑 Reporte Diario"):
         st.session_state.seccion = "Reporte Diario"
     if st.button("📅 Gestión de Citas"):
         st.session_state.seccion = "Gestión de Citas"
+    if st.button("📩 Avisos"):
+        st.session_state.seccion = "Avisos"
+
 
 
 
