@@ -36,7 +36,13 @@ if not st.session_state.authenticated:
             if match:
                 st.session_state.sheet_id = match.group(1)
                 st.session_state.authenticated = True
+                # ⚠️ Recuperamos la sección si había parámetro
+                query_params = st.query_params
+                seccion_query = query_params.get("seccion", [""])[0].strip().lower()
+                if seccion_query == "avisos":
+                    st.session_state.seccion = "Avisos"
                 st.rerun()
+
             else:
                 st.warning("El enlace no es válido.")
         else:
@@ -100,14 +106,16 @@ try:
 except:
     st.error("❌ No se pudieron cargar los datos.")
     st.stop()
-# Sección inicializada para evitar NameError
-if "seccion" not in st.session_state:
-    st.session_state.seccion = ""
 
 query_params = st.query_params
 seccion_query = query_params.get("seccion", [""])[0].strip().lower()
 if seccion_query == "avisos":
     st.session_state.seccion = "Avisos"
+
+# Sección inicializada para evitar NameError
+if "seccion" not in st.session_state:
+    st.session_state.seccion = ""
+
 
 st.markdown("## 📂 Selecciona una sección")
 col1, col2, col3 = st.columns([1, 1, 1])
