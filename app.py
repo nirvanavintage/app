@@ -37,11 +37,12 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
                 (row.get('Tipo de prenda') or '') +
                 ', Talla: ' + (row.get('Talla') or '') +
                 ', ' + (row.get('Caracteristicas (Color, estampado, material...)') or '') +
-                (f" | ✔ {row.get('Fecha Vendida')}" if bool(row.get('Vendida')) else " | ✖ No vendida")
+                (f" | ✔ {row.get('Fecha Vendida')}" if row.get('Vendida') is True else " | ✖ No vendida")
             ), axis=1
         )
         df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
-        df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).map(lambda x: f"{int(x)} €")
+        precios = pd.to_numeric(df['Precio'], errors='coerce').fillna(0)
+        df['Precio'] = precios.map(lambda x: f"{int(x)} €")
         export_df = df[['Recepcion', 'Descripcion', 'Precio']].astype(str).fillna("")
 
         col_w = [30, 180, 25]
@@ -101,11 +102,15 @@ except Exception:
 if "Vendida" in df_prendas.columns:
     df_prendas["Vendida"] = df_prendas["Vendida"].astype(str).str.strip().str.lower().map({"true": True, "false": False, "": False})
 
+if "Precio" in df_prendas.columns:
+    df_prendas["Precio"] = pd.to_numeric(df_prendas["Precio"], errors="coerce")
+
 prendas_limpio = limpiar_df(df_prendas)
 
 if seccion == "Buscar Cliente":
     nombre = st.text_input("Nombre cliente")
-    if st.button("🔍 Buscar") and nombre:
+    buscar = st.button("🔍 Buscar")
+    if nombre and buscar:
         clientes_match = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
         if clientes_match.empty:
             st.warning("No se encontraron coincidencias.")
@@ -116,7 +121,8 @@ if seccion == "Buscar Cliente":
             prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"].isin(ids)]
             st.subheader("👜 Prendas del cliente")
             st.dataframe(prendas_cliente, use_container_width=True)
-            if st.button("📄 PDF Informe del Cliente"):
+            generar = st.button("📄 PDF Informe del Cliente")
+            if generar:
                 nombre_cliente = clientes_match.iloc[0]["Nombre y Apellidos"]
                 idc = clientes_match.iloc[0]["ID Cliente"]
                 titulo = f"Informe del cliente {idc} – {nombre_cliente}"
@@ -139,7 +145,7 @@ elif seccion == "Reporte Diario":
     fecha_seleccionada = st.date_input("Selecciona una fecha para el reporte", value=datetime.today().date())
     fecha_dt = pd.to_datetime(fecha_seleccionada).normalize()
     df_prendas['Fecha Vendida'] = pd.to_datetime(df_prendas['Fecha Vendida'], errors='coerce')
-    vendidos_fecha = prendas_limpio[
+    vendidos_fecha = df_prendas[
         (df_prendas['Vendida']) &
         (df_prendas['Fecha Vendida'].dt.normalize() == fecha_dt)
     ]
