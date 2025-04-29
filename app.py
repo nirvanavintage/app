@@ -418,19 +418,20 @@ elif seccion == "Reporte Diario":
         )
 
     # --- Exportar PDF ---
-    if st.button("📄 Descargar Reporte en PDF"):
+    # --- Exportar PDF ---
+    if st.button("Descargar Reporte en PDF"):
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, f"Reporte Diario - {hoy.date()}", ln=True, align='C')
         pdf.ln(10)
-
+    
         pdf.set_font("Arial", '', 12)
         pdf.cell(0, 8, f"Total ganado: EUR {total_ganado:.2f}", ln=True)
         pdf.cell(0, 8, f"Comisión clientes (30%): EUR {comision_clientes:.2f}", ln=True)
         pdf.cell(0, 8, f"Total neto: EUR {total_neto:.2f}", ln=True)
         pdf.ln(8)
-
+    
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 8, "Ventas del Día:", ln=True)
         pdf.set_font("Arial", '', 10)
@@ -444,26 +445,30 @@ elif seccion == "Reporte Diario":
                 fecha = row.get("Fecha Vendida")
                 fecha_str = pd.to_datetime(fecha, errors='coerce')
                 fecha_str = fecha_str.date().isoformat() if pd.notna(fecha_str) else "Fecha inválida"
-        
+    
                 linea = f"- {id_prenda} | Cliente: {cliente} | {tipo} Talla {talla} | EUR {precio} | {fecha_str}"
                 pdf.multi_cell(0, 8, linea)
-            except Exception as e:
-                pdf.multi_cell(0, 8, "⚠️ Error al mostrar una venta.")
-
+            except Exception:
+                pdf.multi_cell(0, 8, "Error al mostrar una venta.")
+        pdf.ln(8)
+    
         if not nuevas_altas.empty:
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(0, 8, "Altas de nuevos clientes:", ln=True)
             pdf.set_font("Arial", '', 10)
             for _, row in nuevas_altas.iterrows():
-                linea = " - ".join([f"{col}: {str(row[col])}" for col in nuevas_altas.columns if pd.notna(row[col])])
-                pdf.multi_cell(0, 8, linea)
-                pdf.ln(1)
-
+                try:
+                    linea = " - ".join([f"{col}: {str(row[col])}" for col in nuevas_altas.columns if pd.notna(row[col])])
+                    pdf.multi_cell(0, 8, linea)
+                    pdf.ln(1)
+                except Exception:
+                    pdf.multi_cell(0, 8, "Error al mostrar un cliente.")
+    
         buffer = BytesIO()
         pdf.output(buffer)
         buffer.seek(0)
         st.download_button(
-            label="⬇️ Descargar PDF",
+            label="Descargar PDF",
             data=buffer.getvalue(),
             file_name=f"reporte_diario_{hoy.date()}.pdf"
         )
