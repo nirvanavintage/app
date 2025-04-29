@@ -302,7 +302,7 @@ elif seccion == "Generador de Etiquetas":
             cliente = row.get("Nº Cliente (Formato C-xxx)", "")
             prenda_id = row.get("ID Prenda", "")
 
-            pdf = FPDF(orientation='L', unit='mm', format=(105, 74))  # A7 horizontal
+            pdf = FPDF(orientation='L', unit='mm', format=(74, 105))  # Verdadero horizontal A7
             pdf.add_page()
             pdf.set_font("Arial", 'B', 22)
             pdf.set_xy(0, 20)
@@ -334,7 +334,7 @@ elif seccion == "Generador de Etiquetas":
         st.dataframe(vendidas_hoy)
 
         if st.button("⬇️ Generar PDF etiquetas del día"):
-            pdf = FPDF(orientation='L', unit='mm', format=(105, 74))  # A7 horizontal
+            pdf = FPDF(orientation='L', unit='mm', format=(74, 105))  # Horizontal real
             pdf.set_auto_page_break(auto=False)
 
             for _, row in vendidas_hoy.iterrows():
