@@ -286,7 +286,7 @@ elif seccion == "Generador de Etiquetas":
     hoy = pd.Timestamp.today().normalize()
     fecha_hoy_str = hoy.strftime("%Y-%m-%d")
 
-    # Autocompletado directo sin botón
+    # --- Etiqueta única ---
     codigos_disponibles = df_prendas["ID Prenda"].dropna().unique().tolist()
     cod = st.selectbox("Selecciona una prenda (formato P-XXX)", sorted(codigos_disponibles))
 
@@ -306,7 +306,7 @@ elif seccion == "Generador de Etiquetas":
             pdf.add_page()
             pdf.set_font("Arial", 'B', 22)
             pdf.set_xy(0, 20)
-            pdf.cell(105, 12, u"€ " + str(precio), ln=2, align='C')
+            pdf.cell(105, 12, "EUR " + precio, ln=2, align='C')
             pdf.set_font("Arial", 'B', 20)
             pdf.cell(105, 10, f"Talla {talla}", ln=2, align='C')
             pdf.set_font("Arial", '', 14)
@@ -316,10 +316,20 @@ elif seccion == "Generador de Etiquetas":
             buffer = BytesIO()
             pdf.output(buffer)
             buffer.seek(0)
-            st.download_button("⬇️ Descargar Etiqueta", buffer.getvalue(), file_name=f"etiqueta_{prenda_id}_{fecha_hoy_str}.pdf")
+            st.download_button(
+                "⬇️ Descargar Etiqueta",
+                buffer.getvalue(),
+                file_name=f"etiqueta_{prenda_id}_{fecha_hoy_str}.pdf"
+            )
 
+    # --- Etiquetas de productos vendidos hoy ---
     st.markdown("#### 🔹 Generar etiquetas de productos vendidos hoy")
-    vendidas_hoy = df_prendas[df_prendas["Fecha Vendida"].dt.normalize() == hoy]
+    if "Fecha Vendida" in df_prendas.columns:
+        df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors='coerce')
+        vendidas_hoy = df_prendas[df_prendas["Fecha Vendida"].dt.normalize() == hoy]
+    else:
+        vendidas_hoy = pd.DataFrame()
+
     if not vendidas_hoy.empty:
         st.dataframe(vendidas_hoy)
 
@@ -336,7 +346,7 @@ elif seccion == "Generador de Etiquetas":
                 pdf.add_page()
                 pdf.set_font("Arial", 'B', 22)
                 pdf.set_xy(0, 20)
-                pdf.cell(105, 12, u"€ " + str(precio), ln=2, align='C')
+                pdf.cell(105, 12, "EUR " + precio, ln=2, align='C')
                 pdf.set_font("Arial", 'B', 20)
                 pdf.cell(105, 10, f"Talla {talla}", ln=2, align='C')
                 pdf.set_font("Arial", '', 14)
@@ -346,4 +356,10 @@ elif seccion == "Generador de Etiquetas":
             buffer = BytesIO()
             pdf.output(buffer)
             buffer.seek(0)
-            st.download_button("⬇️ Descargar Etiquetas A7 Horizontales", buffer.getvalue(), file_name=f"etiquetas_{fecha_hoy_str}.pdf")
+            st.download_button(
+                "⬇️ Descargar Etiquetas Vendidas Hoy",
+                buffer.getvalue(),
+                file_name=f"etiquetas_vendidas_{fecha_hoy_str}.pdf"
+            )
+    else:
+        st.info("No hay prendas vendidas hoy para generar etiquetas.")
