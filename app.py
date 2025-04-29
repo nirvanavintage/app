@@ -13,8 +13,10 @@ if 'authenticated' not in st.session_state:
     password = st.text_input("Contraseña:", type="password")
     if password == "nirvana2025":
         st.session_state.authenticated = True
-        st.experimental_rerun()
+        st.success("Acceso concedido. Recarga la página si no se actualiza.")
+        st.stop()
     else:
+        st.warning("Introduce la contraseña para acceder.")
         st.stop()
 
 # Botón para recargar datos
