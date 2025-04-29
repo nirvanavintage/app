@@ -8,6 +8,19 @@ import unicodedata
 
 st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="wide")
 
+# Seguridad básica
+if 'authenticated' not in st.session_state:
+    password = st.text_input("Contraseña:", type="password")
+    if password == "nirvana2025":
+        st.session_state.authenticated = True
+        st.experimental_rerun()
+    else:
+        st.stop()
+
+# Botón para recargar datos
+if st.button("🔄 Sincronizar datos desde Google Sheets"):
+    st.cache_data.clear()
+
 HIDE_COLS_PATTERN = [
     "Marca temporal", "Merged Doc ID", "Merged Doc URL", "Link to merged Doc", "Document Merge Status"
 ]
@@ -39,7 +52,6 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
     else:
         df['Vendida'] = False
 
-    # la descripción debe respetar si el bloque ya es "vendido" o "stock"
     es_bloque_vendido = "vendida" in titulo_bloque.lower()
 
     df['Descripcion'] = df.apply(
@@ -49,7 +61,12 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
         ), axis=1
     )
 
-    df['Recepcion'] = pd.to_datetime(df.get('Fecha de recepcion', pd.NaT), errors='coerce').dt.strftime('%d/%m/%Y')
+    recepcion_raw = df.get('Fecha de recepcion')
+    if recepcion_raw is not None:
+        df['Recepcion'] = pd.to_datetime(recepcion_raw, errors='coerce').dt.strftime('%d/%m/%Y')
+    else:
+        df['Recepcion'] = ''
+
     precios = pd.to_numeric(df.get('Precio', 0), errors='coerce').fillna(0)
     df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
 
@@ -70,7 +87,6 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
 
 # El resto del código permanece sin cambios
 
-# (...)
 
 def generar_pdf_prendas(df, titulo):
     pdf = FPDF(orientation="L", unit="mm", format="A4")
