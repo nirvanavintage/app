@@ -76,9 +76,6 @@ h1 {
 </div>
 """, unsafe_allow_html=True)
 
-<div style='position: absolute; top: 25px; right: 25px;'>
-    <a href='?seccion=avisos' target='_blank' style='padding: 8px 18px; background-color: #ffe082; color: black; border-radius: 10px; font-weight: bold; text-decoration: none; border: 1px solid #aaa;'>📩 Avisos</a>
-</div>
 
 
 # --- URL construida dinámicamente desde el ID guardado ---
