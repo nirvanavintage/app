@@ -435,11 +435,20 @@ elif seccion == "Reporte Diario":
         pdf.cell(0, 8, "Ventas del Día:", ln=True)
         pdf.set_font("Arial", '', 10)
         for _, row in ventas_dia[columnas_visibles].iterrows():
-            fecha = pd.to_datetime(row['Fecha Vendida'], errors='coerce')
-            fecha_str = fecha.date() if not pd.isna(fecha) else "Fecha inválida"
-            linea = f"- {str(row['ID Prenda'])} | Cliente: {str(row['Nº Cliente (Formato C-xxx)'])} | {str(row['Tipo de prenda'])} Talla {str(row['Talla'])} | EUR {str(row['Precio'])} | {fecha_str}"
-            pdf.multi_cell(0, 8, linea)
-        pdf.ln(8)
+            try:
+                id_prenda = str(row.get("ID Prenda", ""))
+                cliente = str(row.get("Nº Cliente (Formato C-xxx)", ""))
+                tipo = str(row.get("Tipo de prenda", ""))
+                talla = str(row.get("Talla", ""))
+                precio = str(row.get("Precio", ""))
+                fecha = row.get("Fecha Vendida")
+                fecha_str = pd.to_datetime(fecha, errors='coerce')
+                fecha_str = fecha_str.date().isoformat() if pd.notna(fecha_str) else "Fecha inválida"
+        
+                linea = f"- {id_prenda} | Cliente: {cliente} | {tipo} Talla {talla} | EUR {precio} | {fecha_str}"
+                pdf.multi_cell(0, 8, linea)
+            except Exception as e:
+                pdf.multi_cell(0, 8, "⚠️ Error al mostrar una venta.")
 
         if not nuevas_altas.empty:
             pdf.set_font("Arial", 'B', 12)
