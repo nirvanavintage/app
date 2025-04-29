@@ -39,7 +39,7 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
             df.apply(lambda row: f" | {'✔ ' + str(row['Fecha Vendida']) if bool(row['Vendida']) else '✖ No vendida'}", axis=1)
         df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
         df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).map(lambda x: f"{int(x)} €")
-        export_df = df[['Recepcion', 'Descripcion', 'Precio']].astype(str).fillna("")
+        export_df = df[['Recepcion', 'Descripcion', 'Precio']].astype(str).fillna(""))
 
         col_w = [30, 180, 25]
         headers = ['Recepcion', 'Descripcion', 'Precio']
