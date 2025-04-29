@@ -315,42 +315,32 @@ elif seccion == "Generador de Etiquetas":
             buffer.seek(0)
             st.download_button("⬇️ Descargar Etiqueta", buffer.getvalue(), file_name=f"etiqueta_{cod}.pdf")
 
-            # --- Generar etiquetas de productos vendidos hoy ---
-        st.markdown("#### 🔹 Generar etiquetas de productos vendidos hoy")
-        
-        # Normaliza fechas a solo día (sin hora)
-        hoy = pd.Timestamp.today().normalize()
-        vendidas_hoy = df_prendas[df_prendas["Fecha Vendida"].dt.normalize() == hoy]
-        
-        if not vendidas_hoy.empty:
-            st.dataframe(vendidas_hoy)
-        
-            if st.button("🖨️ Generar PDF etiquetas del día"):
-                etiquetas_por_fila = 2
-                filas_por_pagina = 5
-                etiquetas_por_pagina = etiquetas_por_fila * filas_por_pagina
-                etiqueta_ancho = 70
-                etiqueta_alto = 40
-        
-                pdf = FPDF(orientation='P', unit='mm', format='A4')
-                pdf.set_auto_page_break(auto=False)
-        
-                for i, (_, row) in enumerate(vendidas_hoy.iterrows()):
-                    if i % etiquetas_por_pagina == 0:
-                        pdf.add_page()
-                    x = 10 + (i % etiquetas_por_fila) * (etiqueta_ancho + 10)
-                    y = 10 + ((i // etiquetas_por_fila) % filas_por_pagina) * (etiqueta_alto + 10)
-                    pdf.set_xy(x, y)
-                    pdf.set_font("Arial", 'B', 14)
-                    pdf.cell(etiqueta_ancho, 8, f"EUR {row.get('Precio', '')}", ln=2, align='C')
-                    pdf.cell(etiqueta_ancho, 8, f"Talla {row.get('Talla', '')}", ln=2, align='C')
-                    pdf.set_font("Arial", '', 10)
-                    pdf.cell(etiqueta_ancho, 6, f"Cliente: {row.get('Nº Cliente (Formato C-xxx)', '')}", ln=2, align='C')
-                    pdf.cell(etiqueta_ancho, 6, f"Prenda: {row.get('ID Prenda', '')}", ln=2, align='C')
-        
-                buffer = BytesIO()
-                pdf.output(buffer)
-                buffer.seek(0)
-                st.download_button("⬇️ Descargar Todas las Etiquetas", buffer.getvalue(), file_name="etiquetas_vendidas_hoy.pdf")
-        else:
-            st.info("No hay prendas vendidas hoy.")
+            # --- Generar etiquetas individuales por página para productos vendidos hoy ---
+    st.markdown("#### 🔹 Generar etiquetas individuales (una por hoja) para productos vendidos hoy")
+    
+    hoy = pd.Timestamp.today().normalize()
+    vendidas_hoy = df_prendas[df_prendas["Fecha Vendida"].dt.normalize() == hoy]
+    
+    if not vendidas_hoy.empty:
+        st.dataframe(vendidas_hoy)
+    
+        if st.button("🖨️ Generar PDF etiquetas individuales del día"):
+            pdf = FPDF(orientation='P', unit='mm', format=(74, 105))  # Tamaño A7
+            pdf.set_auto_page_break(auto=False)
+    
+            for _, row in vendidas_hoy.iterrows():
+                pdf.add_page()
+                pdf.set_xy(0, 20)
+                pdf.set_font("Arial", 'B', 18)
+                pdf.cell(74, 10, f"EUR {row.get('Precio', '')}", ln=2, align='C')
+                pdf.cell(74, 10, f"Talla {row.get('Talla', '')}", ln=2, align='C')
+                pdf.set_font("Arial", '', 12)
+                pdf.cell(74, 8, f"Cliente: {row.get('Nº Cliente (Formato C-xxx)', '')}", ln=2, align='C')
+                pdf.cell(74, 8, f"Prenda: {row.get('ID Prenda', '')}", ln=2, align='C')
+    
+            buffer = BytesIO()
+            pdf.output(buffer)
+            buffer.seek(0)
+            st.download_button("⬇️ Descargar Etiquetas (una por hoja)", buffer.getvalue(), file_name="etiquetas_individuales_hoy.pdf")
+    else:
+        st.info("No hay prendas vendidas hoy.")
