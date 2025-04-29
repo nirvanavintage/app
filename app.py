@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import tempfile
@@ -34,10 +33,10 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
     else:
         df = df.copy()
         df['Descripción'] = (
-            df['Tipo de prenda'].fillna('') + 
-            ', Talla: ' + df['Talla'].fillna('') + 
+            df['Tipo de prenda'].fillna('') +
+            ', Talla: ' + df['Talla'].fillna('') +
             ', ' + df['Características (Color, estampado, material...)'].fillna('') +
-            df.apply(lambda row: f" | {'✔ ' + str(row['Fecha Vendida']) if str(row['Vendida']).lower() == 'true' else '✖ No vendida'}", axis=1)
+            df.apply(lambda row: f" | {'✔ ' + str(row['Fecha Vendida']) if str(row['Vendida']).strip().lower() == 'true' else '✖ No vendida'}", axis=1)
         )
         df['Recepción'] = pd.to_datetime(df['Fecha de recepción'], errors='coerce').dt.strftime('%d/%m/%Y')
         df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).map(lambda x: f"{x:,.0f} €".replace(",", "."))
@@ -66,16 +65,15 @@ def generar_pdf_prendas(df, titulo):
     pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
     pdf.ln(5)
     exportar_descripcion_pdf(pdf, df, "Listado")
+    total = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).sum()
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.cell(0, 8, f"💰 Total vendido: {total:,.0f} €".replace(",", "."), ln=True)
     return pdf
-
-# =========
-# Encabezado
-# =========
 
 st.markdown("""
 <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
 <div style='text-align:center'>
-    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
+    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>🗕 Nueva Prenda</a> |
     <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
     <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
 </div>
@@ -89,11 +87,12 @@ menu_options = [
     "Reporte Diario"
 ]
 
-seccion = st.sidebar.selectbox("🪄 Secciones disponibles:", menu_options, index=0)
+seccion = st.sidebar.selectbox("🪤 Secciones disponibles:", menu_options, index=0)
 
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 
+@st.cache_data
 def cargar(sheet: str) -> pd.DataFrame:
     return pd.read_csv(URL_BASE + sheet)
 
@@ -105,7 +104,7 @@ except Exception:
     st.stop()
 
 if "Vendida" in df_prendas.columns:
-    df_prendas["Vendida"] = df_prendas["Vendida"].astype(str).str.lower().map({"true": True, "false": False})
+    df_prendas["Vendida"] = df_prendas["Vendida"].astype(str).str.strip().str.lower().map({"true": True, "false": False, "": False})
 
 prendas_limpio = limpiar_df(df_prendas)
 
@@ -123,7 +122,6 @@ if seccion == "Buscar Cliente":
             st.subheader("👜 Prendas del cliente")
             st.dataframe(prendas_cliente, use_container_width=True)
             if st.button("📄 PDF Informe del Cliente"):
-                fecha = datetime.now().strftime("%Y-%m-%d_%H%M%S")
                 nombre_cliente = clientes_match.iloc[0]["Nombre y Apellidos"]
                 idc = clientes_match.iloc[0]["ID Cliente"]
                 titulo = f"Informe del cliente {idc} – {nombre_cliente}"
@@ -139,35 +137,21 @@ if seccion == "Buscar Cliente":
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                     pdf.output(tmp.name)
                     tmp.seek(0)
-                    st.download_button("📄 Descargar PDF Informe Cliente", tmp.read(), file_name=f"cliente_{idc}_{fecha}.pdf", mime="application/pdf")
+                    st.download_button("📄 Descargar PDF Informe Cliente", tmp.read(), file_name=f"informe_cliente_{idc}.pdf", mime="application/pdf")
                     os.unlink(tmp.name)
-
-elif seccion == "Consultar Stock":
-    st.subheader("🍋 Stock Actual")
-    stock = prendas_limpio[~df_prendas["Vendida"]]
-    st.dataframe(stock, use_container_width=True)
-
-elif seccion == "Consultar Vendidos":
-    st.subheader("✅ Prendas Vendidas")
-    vendidos = prendas_limpio[df_prendas["Vendida"]]
-    st.dataframe(vendidos, use_container_width=True)
-
-elif seccion == "Generar Avisos de Hoy":
-    hoy = pd.Timestamp.today().normalize()
-    avisos_hoy = prendas_limpio[pd.to_datetime(df_prendas["Fecha Aviso"], errors="coerce").dt.normalize() == hoy]
-    st.subheader(f"📣 Avisos para {hoy.date()}: {len(avisos_hoy)}")
-    st.dataframe(avisos_hoy, use_container_width=True)
 
 elif seccion == "Reporte Diario":
     fecha_seleccionada = st.date_input("Selecciona una fecha para el reporte", value=datetime.today().date())
     fecha_dt = pd.to_datetime(fecha_seleccionada)
-    vendidos_fecha = prendas_limpio[df_prendas["Vendida"] & (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.normalize() == fecha_dt)]
+    vendidos_fecha = prendas_limpio[
+        df_prendas["Vendida"] &
+        (pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce").dt.normalize() == fecha_dt)
+    ]
     st.subheader(f"✅ Prendas Vendidas el {fecha_dt.date()} ({len(vendidos_fecha)})")
     st.dataframe(vendidos_fecha, use_container_width=True)
 
     if st.button("📄 PDF Ventas de la Fecha"):
-        titulo = f"Ventas del día {fecha_dt.strftime('%Y-%m-%d')}"
-        pdf = generar_pdf_prendas(vendidos_fecha, titulo)
+        pdf = generar_pdf_prendas(vendidos_fecha, f"Ventas del {fecha_dt.strftime('%d/%m/%Y')}")
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             pdf.output(tmp.name)
             tmp.seek(0)
