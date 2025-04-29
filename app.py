@@ -127,85 +127,66 @@ if seccion == "Buscar Cliente":
                 pdf.output(buffer)
                 buffer.seek(0)
                 st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
-
 # --- Consultar Stock ---
 elif seccion == "Consultar Stock":
     st.header("📦 Prendas en Stock")
 
     stock = df_prendas[df_prendas["Vendida"] != True].copy()
 
-    # Filtros dinámicos
-    with st.expander("🔍 Filtros"):
-        col1, col2, col3 = st.columns(3)
+    with st.expander("⚙️ Filtros"):
+        col1, col2 = st.columns(2)
         with col1:
-            talla_filtrada = st.multiselect("Talla", sorted(stock["Talla"].dropna().unique()))
+            tallas = st.multiselect("Filtrar por talla", sorted(stock["Talla"].dropna().unique()))
         with col2:
-            tipo_filtrado = st.multiselect("Tipo de prenda", sorted(stock["Tipo de prenda"].dropna().unique()))
-        with col3:
-            marca_filtrada = st.multiselect("Marca", sorted(stock["Marca"].dropna().unique()))
+            categorias = st.multiselect("Filtrar por categoría", sorted(stock["Tipo de prenda"].dropna().unique()))
 
-        if talla_filtrada:
-            stock = stock[stock["Talla"].isin(talla_filtrada)]
-        if tipo_filtrado:
-            stock = stock[stock["Tipo de prenda"].isin(tipo_filtrado)]
-        if marca_filtrada:
-            stock = stock[stock["Marca"].isin(marca_filtrada)]
+        if tallas:
+            stock = stock[stock["Talla"].isin(tallas)]
+        if categorias:
+            stock = stock[stock["Tipo de prenda"].isin(categorias)]
 
-    # Columnas a excluir (posiciones aproximadas desde A hasta S)
-    columnas_excluir = ["Marca temporal", "Email", "Nº de Formulario", "Observaciones", 
-                        "Merged Doc ID - Generar Etiquetas Nirvana", "Merged Doc Link", "URL etiqueta"]
-    columnas_excluir += [col for col in stock.columns if col.startswith("Unnamed") or col.startswith("P") or col.startswith("S")]
-    columnas_utiles = [col for col in stock.columns if col not in columnas_excluir]
-
-    # Crear columna descripción
-    stock["Descripción"] = stock.apply(lambda row: f"{row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')} | {row.get('Caracteristicas (Color, estampado, material...)', '')}", axis=1)
+    # Crear columna de descripción combinada
+    stock["Descripción"] = stock.apply(lambda row: f"{row['Tipo de prenda']} | Talla {row['Talla']} | {row['Caracteristicas (Color, estampado, material...)']}", axis=1)
 
     columnas_mostrar = ["ID Prenda", "Nº Cliente (Formato C-xxx)", "Fecha de recepción", "Precio", "Descripción"]
-    stock_final = stock[columnas_mostrar]
+    stock_filtrado = stock[columnas_mostrar]
 
-    st.dataframe(stock_final, use_container_width=True)
+    st.dataframe(stock_filtrado, use_container_width=True)
 
-    # --- Descargar Excel ---
     if st.button("⬇️ Descargar Excel Stock"):
         buffer = BytesIO()
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            stock_final.to_excel(writer, sheet_name="Stock", index=False)
+            stock_filtrado.to_excel(writer, index=False, sheet_name='Stock')
+            worksheet = writer.sheets['Stock']
+            for i, col in enumerate(stock_filtrado.columns):
+                column_len = stock_filtrado[col].astype(str).map(len).max()
+                worksheet.set_column(i, i, column_len + 5)
         buffer.seek(0)
-        st.download_button("📥 Guardar como Excel", buffer, file_name="stock_filtrado.xlsx")
+        st.download_button("Descargar Stock Excel", buffer, file_name="stock_filtrado.xlsx")
 
-    # --- Descargar PDF ---
     if st.button("⬇️ Descargar PDF Stock"):
         pdf = FPDF(orientation='L', unit='mm', format='A4')
         pdf.add_page()
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, "Stock Actual de Prendas", ln=True, align='C')
-        pdf.ln(10)
-        pdf.set_font("Arial", '', 10)
+        pdf.cell(0, 10, texto_fpdf("Stock de Prendas"), ln=True, align='C')
+        pdf.ln(6)
 
-        col_widths = [40, 40, 40, 20, 140]
-        headers = ["ID Prenda", "Cliente", "Recepción", "€", "Descripción"]
-
-        for i, header in enumerate(headers):
-            pdf.cell(col_widths[i], 8, header, border=1)
+        pdf.set_font("Arial", 'B', 10)
+        for col in columnas_mostrar:
+            pdf.cell(50, 8, texto_fpdf(col), border=1)
         pdf.ln()
 
-        for _, row in stock_final.iterrows():
-            datos = [
-                str(row["ID Prenda"]),
-                str(row["Nº Cliente (Formato C-xxx)"]),
-                row["Fecha de recepción"].strftime("%d/%m/%Y") if pd.notna(row["Fecha de recepción"]) else "",
-                f"{row['Precio']} €",
-                str(row["Descripción"])
-            ]
-            for i, dato in enumerate(datos):
-                pdf.cell(col_widths[i], 8, str(dato), border=1)
+        pdf.set_font("Arial", '', 10)
+        for _, row in stock_filtrado.iterrows():
+            for col in columnas_mostrar:
+                valor = str(row[col])
+                pdf.cell(50, 8, texto_fpdf(valor), border=1)
             pdf.ln()
 
         buffer_pdf = BytesIO()
         pdf.output(buffer_pdf)
         buffer_pdf.seek(0)
-        st.download_button("📥 Guardar como PDF", buffer_pdf, file_name="stock_filtrado.pdf")
-
+        st.download_button("⬇️ Descargar PDF Stock", buffer_pdf.getvalue(), file_name="stock_filtrado.pdf")
 # --- Consultar Vendidos ---
 elif seccion == "Consultar Vendidos":
     st.header("✅ Prendas Vendidas")
