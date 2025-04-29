@@ -88,7 +88,6 @@ SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 
 @st.cache_data
-
 def cargar(sheet: str) -> pd.DataFrame:
     return pd.read_csv(URL_BASE + sheet)
 
@@ -109,23 +108,28 @@ prendas_limpio = limpiar_df(df_prendas)
 
 if seccion == "Buscar Cliente":
     nombre = st.text_input("Nombre cliente")
-    if st.button("🔍 Buscar") and nombre:
-        clientes_match = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
-        if clientes_match.empty:
+    if nombre:
+        if st.button("🔍 Buscar"):
+            clientes_match = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
+            st.session_state['clientes_match'] = clientes_match.to_dict("records")
+
+    if 'clientes_match' in st.session_state:
+        clientes_df = pd.DataFrame(st.session_state['clientes_match'])
+        if clientes_df.empty:
             st.warning("No se encontraron coincidencias.")
         else:
-            st.success(f"Se encontraron {len(clientes_match)} cliente(s)")
-            st.dataframe(limpiar_df(clientes_match), use_container_width=True)
-            ids = clientes_match["ID Cliente"].unique()
+            st.success(f"Se encontraron {len(clientes_df)} cliente(s)")
+            st.dataframe(limpiar_df(clientes_df), use_container_width=True)
+            ids = clientes_df["ID Cliente"].unique()
             prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"].isin(ids)]
             st.subheader("👜 Prendas del cliente")
             st.dataframe(prendas_cliente, use_container_width=True)
             if st.button("📄 PDF Informe del Cliente"):
-                nombre_cliente = clientes_match.iloc[0]["Nombre y Apellidos"]
-                idc = clientes_match.iloc[0]["ID Cliente"]
+                nombre_cliente = clientes_df.iloc[0]["Nombre y Apellidos"]
+                idc = clientes_df.iloc[0]["ID Cliente"]
                 titulo = f"Informe del cliente {idc} – {nombre_cliente}"
-                prendas_ventas = prendas_cliente[prendas_cliente['Vendida'] == True]
-                prendas_stock = prendas_cliente[prendas_cliente['Vendida'] != True]
+                prendas_ventas = prendas_cliente[~prendas_cliente['Fecha Vendida'].isna()]
+                prendas_stock = prendas_cliente[prendas_cliente['Fecha Vendida'].isna()]
                 pdf = FPDF(orientation="L", unit="mm", format="A4")
                 pdf.add_page()
                 pdf.set_font("Helvetica", "B", 14)
@@ -144,7 +148,7 @@ elif seccion == "Reporte Diario":
     fecha_dt = pd.to_datetime(fecha_seleccionada).normalize()
     df_prendas['Fecha Vendida'] = pd.to_datetime(df_prendas['Fecha Vendida'], errors='coerce')
     vendidos_fecha = df_prendas[
-        (df_prendas['Vendida']) &
+        (~df_prendas['Fecha Vendida'].isna()) &
         (df_prendas['Fecha Vendida'].dt.normalize() == fecha_dt)
     ]
     st.subheader(f"✅ Prendas Vendidas el {fecha_dt.date()} ({len(vendidos_fecha)})")
