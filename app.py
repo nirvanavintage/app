@@ -8,6 +8,12 @@ from io import BytesIO
 import unicodedata
 import base64
 
+
+def texto_fpdf(texto):
+    if not isinstance(texto, str):
+        texto = str(texto)
+    return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("ascii")
+
 st.set_page_config(page_title="Nirvana Vintage", page_icon="✨", layout="wide")
 
 # Seguridad persistente
