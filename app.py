@@ -163,30 +163,42 @@ elif seccion == "Consultar Stock":
             stock[columnas_visibles].to_excel(writer, index=False, sheet_name="Stock")
         buffer.seek(0)
         st.download_button("Descargar Stock Excel", buffer, file_name="stock_filtrado.xlsx")
-
     if st.button("🖨️ Descargar PDF Stock"):
         pdf = FPDF(orientation='L', unit='mm', format='A4')
         pdf.add_page()
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(0, 10, texto_fpdf("Stock de Prendas (filtrado)"), ln=True, align='C')
         pdf.ln(5)
-
+    
         pdf.set_font("Arial", 'B', 10)
+    
+        # Definir anchos de columna personalizados
+        col_widths = {
+            "ID Prenda": 30,
+            "Nº Cliente (Formato C-xxx)": 40,
+            "Fecha de recepción": 40,
+            "Precio": 20,
+            "Descripción": 150
+        }
+    
+        # Encabezados
         for col in columnas_visibles:
-            pdf.cell(60 if col == "Descripción" else 40, 8, texto_fpdf(col), border=1)
+            pdf.cell(col_widths[col], 8, texto_fpdf(col), border=1)
         pdf.ln()
-
+    
+        # Filas
         pdf.set_font("Arial", '', 9)
         for _, row in stock[columnas_visibles].iterrows():
             for col in columnas_visibles:
                 valor = str(row[col]) if pd.notna(row[col]) else ""
-                pdf.cell(60 if col == "Descripción" else 40, 8, texto_fpdf(valor), border=1)
+                pdf.cell(col_widths[col], 8, texto_fpdf(valor), border=1)
             pdf.ln()
-
+    
         buffer = BytesIO()
         pdf.output(buffer)
         buffer.seek(0)
         st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name="stock_filtrado.pdf")
+    ")
 elif seccion == "Consultar Vendidos":
     st.header("✅ Prendas Vendidas")
     vendidos = df_prendas[df_prendas["Vendida"] == True]
