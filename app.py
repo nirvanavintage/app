@@ -82,34 +82,33 @@ if seccion == "Buscar Cliente":
         resultados = df_clientes[df_clientes["Nombre y Apellidos"] == nombre]
         st.subheader("📄 Datos del Cliente")
         st.dataframe(resultados, use_container_width=True)
-
         if not resultados.empty:
-            id_cliente = resultados.iloc[0]["ID Cliente"]
-            prendas_cliente = df_prendas[df_prendas["Nº Cliente (Formato C-xxx)"] == id_cliente]
-
-            st.subheader("👜 Prendas del Cliente")
-            st.dataframe(prendas_cliente.sort_values("Fecha de recepción"), use_container_width=True)
-
-            if st.button("📄 Descargar Informe Cliente"):
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", 'B', 16)
-                nombre_cliente = resultados.iloc[0]["Nombre y Apellidos"]
-                pdf.cell(0, 10, texto_fpdf(f"Informe del cliente {id_cliente} {nombre_cliente}"), ln=True, align='C')
-
-                pdf.ln(10)
-
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 8, texto_fpdf("Datos del cliente:"), ln=True)
-                for col in ["ID Cliente", "Nombre y Apellidos", "Teléfono", "Fecha de Alta", "DNI"]:
-                    valor = resultados.iloc[0].get(col, "")
-                    pdf.set_font("Arial", '', 11)
-                    pdf.cell(0, 7, texto_fpdf(f"{col}: {valor}"), ln=True)
-
-                pdf.ln(5)
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 8, texto_fpdf("Prendas entregadas:"), ln=True)
-
+        id_cliente = resultados.iloc[0].get("ID Cliente", "Desconocido")
+        nombre_cliente = resultados.iloc[0].get("Nombre y Apellidos", "Sin Nombre")
+        prendas_cliente = df_prendas[df_prendas["Nº Cliente (Formato C-xxx)"] == id_cliente]
+    
+        st.subheader("👜 Prendas del Cliente")
+        st.dataframe(prendas_cliente)
+    
+        if st.button("📄 Descargar Informe Cliente"):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", 'B', 16)
+            pdf.cell(0, 10, texto_fpdf(f"Informe del cliente {id_cliente} {nombre_cliente}"), ln=True, align='C')
+            pdf.ln(10)
+    
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, texto_fpdf("Datos del cliente:"), ln=True)
+            for col in ["ID Cliente", "Teléfono", "Email", "Fecha de Alta", "DNI"]:
+                valor = resultados.iloc[0].get(col, "")
+                pdf.set_font("Arial", '', 11)
+                pdf.cell(0, 7, texto_fpdf(f"{col}: {valor}"), ln=True)
+    
+            pdf.ln(5)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, texto_fpdf("Prendas entregadas:"), ln=True)
+    
+            if not prendas_cliente.empty:
                 prendas_cliente = prendas_cliente.sort_values("Fecha de recepción")
                 fecha_actual = None
                 for _, row in prendas_cliente.iterrows():
@@ -121,15 +120,17 @@ if seccion == "Buscar Cliente":
                             pdf.set_font("Arial", 'B', 11)
                             pdf.cell(0, 7, texto_fpdf(f"Recepción: {fecha_str}"), ln=True)
                             fecha_actual = fecha_str
-
                     pdf.set_font("Arial", '', 10)
-                    descripcion = f"- {row['Tipo de prenda']} | Talla {row['Talla']} | {row['Caracteristicas (Color, estampado, material...)']}"
+                    descripcion = f"- {row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')} | {row.get('Caracteristicas (Color, estampado, material...)', '')}"
                     pdf.cell(0, 6, texto_fpdf(descripcion), ln=True)
-
-                buffer = BytesIO()
-                pdf.output(buffer)
-                buffer.seek(0)
-                st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
+            else:
+                pdf.set_font("Arial", '', 10)
+                pdf.cell(0, 6, texto_fpdf("No hay prendas registradas para este cliente."), ln=True)
+    
+            buffer = BytesIO()
+            pdf.output(buffer)
+            buffer.seek(0)
+            st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
 # --- Consultar Stock ---
 elif seccion == "Consultar Stock":
     st.header("📦 Prendas en Stock")
