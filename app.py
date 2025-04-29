@@ -30,34 +30,33 @@ def exportar_descripcion_pdf(pdf, df, titulo_bloque):
     pdf.set_font("Helvetica", size=8)
     if df.empty:
         pdf.cell(0, 6, "Sin datos.", ln=True)
-    else:
-        df = df.copy()
-        df['Descripcion'] = df.apply(
-            lambda row: (
-                (row.get('Tipo de prenda') or '') +
-                ', Talla: ' + (row.get('Talla') or '') +
-                ', ' + (row.get('Caracteristicas (Color, estampado, material...)') or '') +
-                (f" | ✔ {row.get('Fecha Vendida')}" if row.get('Vendida') is True else " | ✖ No vendida")
-            ), axis=1
-        )
-        df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
-        precios = pd.to_numeric(df['Precio'], errors='coerce').fillna(0)
-        df['Precio'] = precios.map(lambda x: f"{int(x)} €")
-        export_df = df[['Recepcion', 'Descripcion', 'Precio']].astype(str).fillna("")
+        return
 
-        col_w = [30, 180, 25]
-        headers = ['Recepcion', 'Descripcion', 'Precio']
-        for i, col in enumerate(headers):
-            pdf.cell(col_w[i], 6, clean_text(col), border=1)
+    df = df.copy()
+    df['Vendida'] = df['Vendida'].fillna(False)
+    df['Descripcion'] = df.apply(
+        lambda row: (
+            f"{row.get('Tipo de prenda', '')}, Talla: {row.get('Talla', '')}, {row.get('Caracteristicas (Color, estampado, material...)', '')}" +
+            (f" | ✔ {row.get('Fecha Vendida')}" if row.get('Vendida') else " | ✖ No vendida")
+        ), axis=1
+    )
+    df['Recepcion'] = pd.to_datetime(df['Fecha de recepcion'], errors='coerce').dt.strftime('%d/%m/%Y')
+    precios = pd.to_numeric(df['Precio'], errors='coerce').fillna(0)
+    df['Precio_Texto'] = precios.map(lambda x: f"{int(x)} €")
+
+    col_w = [30, 180, 25]
+    headers = ['Recepcion', 'Descripcion', 'Precio']
+    for i, col in enumerate(headers):
+        pdf.cell(col_w[i], 6, clean_text(col), border=1)
+    pdf.ln()
+    for _, row in df.iterrows():
+        pdf.cell(col_w[0], 6, clean_text(row['Recepcion']), border=1)
+        x = pdf.get_x()
+        y = pdf.get_y()
+        pdf.multi_cell(col_w[1], 6, clean_text(row['Descripcion']), border=1)
+        pdf.set_xy(x + col_w[1], y)
+        pdf.cell(col_w[2], 6, clean_text(row['Precio_Texto']), border=1)
         pdf.ln()
-        for _, row in export_df.iterrows():
-            pdf.cell(col_w[0], 6, clean_text(row['Recepcion']), border=1)
-            x = pdf.get_x()
-            y = pdf.get_y()
-            pdf.multi_cell(col_w[1], 6, clean_text(row['Descripcion']), border=1)
-            pdf.set_xy(x + col_w[1], y)
-            pdf.cell(col_w[2], 6, clean_text(row['Precio']), border=1)
-            pdf.ln()
     pdf.ln(6)
 
 def generar_pdf_prendas(df, titulo):
@@ -68,7 +67,7 @@ def generar_pdf_prendas(df, titulo):
     pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
     pdf.ln(5)
     exportar_descripcion_pdf(pdf, df, "Listado")
-    total = pd.to_numeric(df['Precio'].str.replace(" €", "", regex=False), errors='coerce').fillna(0).sum()
+    total = pd.to_numeric(df['Precio'], errors='coerce').fillna(0).sum()
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(0, 8, clean_text(f"Total prendas: {len(df)} | Total vendido: {int(total)} €"), ln=True)
     return pdf
@@ -89,6 +88,7 @@ SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
 
 @st.cache_data
+
 def cargar(sheet: str) -> pd.DataFrame:
     return pd.read_csv(URL_BASE + sheet)
 
@@ -109,8 +109,7 @@ prendas_limpio = limpiar_df(df_prendas)
 
 if seccion == "Buscar Cliente":
     nombre = st.text_input("Nombre cliente")
-    buscar = st.button("🔍 Buscar")
-    if nombre and buscar:
+    if st.button("🔍 Buscar") and nombre:
         clientes_match = df_clientes[df_clientes["Nombre y Apellidos"].str.contains(nombre, case=False, na=False)]
         if clientes_match.empty:
             st.warning("No se encontraron coincidencias.")
@@ -121,8 +120,7 @@ if seccion == "Buscar Cliente":
             prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"].isin(ids)]
             st.subheader("👜 Prendas del cliente")
             st.dataframe(prendas_cliente, use_container_width=True)
-            generar = st.button("📄 PDF Informe del Cliente")
-            if generar:
+            if st.button("📄 PDF Informe del Cliente"):
                 nombre_cliente = clientes_match.iloc[0]["Nombre y Apellidos"]
                 idc = clientes_match.iloc[0]["ID Cliente"]
                 titulo = f"Informe del cliente {idc} – {nombre_cliente}"
