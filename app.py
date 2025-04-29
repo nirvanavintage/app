@@ -165,15 +165,42 @@ elif seccion == "Reporte Diario":
     if st.button("📄 PDF Reporte Diario"):
         fecha = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         titulo = f"Reporte Diario – {datetime.today().date().isoformat()}"
-        df_comb = pd.concat([
-            pd.DataFrame([["Avisos de Hoy"]], columns=["SECCIÓN"]),
-            avisos_hoy,
-            pd.DataFrame([["Ventas de Hoy"]], columns=["SECCIÓN"]),
-            vendidos_hoy,
-            pd.DataFrame([["Stock Actual"]], columns=["SECCIÓN"]),
-            stock
-        ], ignore_index=True)
-        df_to_pdf(df_comb, titulo, f"reporte_{fecha}.pdf")
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            pdf = FPDF(orientation="L")
+            pdf.add_page()
+            pdf.set_font("Helvetica", size=12)
+            pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
+            pdf.ln(5)
+
+            for nombre_seccion, df_sec in [
+                ("Avisos de Hoy", avisos_hoy),
+                ("Ventas de Hoy", vendidos_hoy),
+                ("Stock Actual", stock)
+            ]:
+                pdf.set_font("Helvetica", "B", 11)
+                pdf.cell(0, 8, clean_text(nombre_seccion), ln=True)
+                pdf.ln(2)
+                pdf.set_font("Helvetica", size=9)
+                df_sec = limpiar_df(df_sec)
+                df_sec = df_sec.astype(str).fillna("")
+                if df_sec.empty:
+                    pdf.cell(0, 6, "Sin datos.", ln=True)
+                else:
+                    col_w = pdf.w / (len(df_sec.columns) + 1)
+                    for col in df_sec.columns:
+                        pdf.cell(col_w, 6, clean_text(col), border=1)
+                    pdf.ln()
+                    for _, row in df_sec.iterrows():
+                        for item in row:
+                            pdf.cell(col_w, 5, clean_text(item), border=1)
+                        pdf.ln()
+                pdf.ln(4)
+
+            pdf.output(tmp.name)
+            tmp.seek(0)
+            st.download_button("📄 Descargar PDF Diario", tmp.read(), file_name=f"reporte_{fecha}.pdf", mime="application/pdf")
+            os.unlink(tmp.name)
 
 elif seccion == "Informe Cliente por Entregas":
     nombre = st.text_input("Nombre cliente")
