@@ -4,6 +4,7 @@ import tempfile
 import os
 from datetime import datetime
 from fpdf import FPDF
+import unicodedata
 
 # =====================
 # Configuración general
@@ -15,12 +16,22 @@ HIDE_COLS_PATTERN = [
     "Merged Doc ID", "Merged Doc URL", "Link to merged Doc", "Document Merge Status"
 ]
 
-# Función para limpiar DataFrame
+# =====================
+# Funciones auxiliares
+# =====================
+
 def limpiar_df(df: pd.DataFrame) -> pd.DataFrame:
     cols_a_quitar = [c for c in df.columns for pat in HIDE_COLS_PATTERN if pat.lower() in c.lower()]
     return df.drop(columns=cols_a_quitar, errors="ignore")
 
-# Función para generar PDF
+def clean_text(text):
+    if pd.isnull(text):
+        return ""
+    try:
+        return unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode("ascii")
+    except Exception:
+        return str(text)
+
 def df_to_pdf(df, titulo, nombre_archivo):
     cols_mostrar = [c for c in df.columns if c not in [
         "Marca temporal",
@@ -36,7 +47,7 @@ def df_to_pdf(df, titulo, nombre_archivo):
             pdfkit_usable = True
     except Exception:
         pdfkit_usable = False
-    
+
     if pdfkit_usable:
         try:
             css = """
@@ -72,21 +83,21 @@ def df_to_pdf(df, titulo, nombre_archivo):
         except Exception as e:
             st.warning(f"No se pudo generar PDF bonito: {e}. Usando método alternativo.")
 
-    # Fallback a FPDF
+    # Backup con FPDF2
     pdf = FPDF(orientation="L")
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, titulo, ln=True, align="C")
+    pdf.set_font("Helvetica", size=10)
+    pdf.cell(0, 10, clean_text(titulo), ln=True, align="C")
     pdf.ln(4)
 
     col_w = pdf.w / (len(df.columns) + 1)
     for col in df.columns:
-        pdf.cell(col_w, 6, str(col), border=1)
+        pdf.cell(col_w, 6, clean_text(col), border=1)
     pdf.ln()
-    
+
     for _, row in df.iterrows():
         for item in row:
-            pdf.cell(col_w, 5, str(item), border=1)
+            pdf.cell(col_w, 5, clean_text(item), border=1)
         pdf.ln()
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
@@ -100,22 +111,46 @@ def df_to_pdf(df, titulo, nombre_archivo):
         )
         os.unlink(tmp.name)
 
-# ==========
-# Encabezado
-# ==========
+# ========================
+# Encabezado y navegación
+# ========================
 
 st.markdown("""
 <h1 style='text-align:center'>✨ Nirvana Vintage: Gestión Diaria ✨</h1>
 <div style='text-align:center'>
-    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
-    <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
-    <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
+    <a href='https://forms.gle/QAXSH5ZP6oCpWEcL6' target='_blank'>📅 Nueva Prenda</a> |
+    <a href='https://forms.gle/2BpmDNegKNTNc2dK6' target='_blank'>👤 Nuevo Cliente</a> |
+    <a href='https://www.appsheet.com/start/e1062d5c-129e-4947-bed1-cbb925ad7209?platform=desktop#appName=Marcarcomovendido-584406513&view=Marcar%20como%20vendido' target='_blank'>🔄 App Marcar Vendido</a>
 </div>
 """, unsafe_allow_html=True)
 
-# ====================
-# Cargar datos remotos
-# ====================
+# ===============
+# Menú personalizado
+# ===============
+st.sidebar.markdown("""
+    <style>
+    .sidebar .sidebar-content {
+        padding: 2rem 1rem;
+    }
+    .sidebar .css-1d391kg { font-size: 20px; font-weight: bold; }
+    .sidebar .stSelectbox > div { font-size: 18px; }
+    </style>
+""", unsafe_allow_html=True)
+
+menu_options = [
+    "Buscar Cliente",
+    "Consultar Stock",
+    "Consultar Vendidos",
+    "Generar Avisos de Hoy",
+    "Reporte Diario",
+    "Informe Cliente por Entregas"
+]
+
+seccion = st.sidebar.selectbox("🪄 Secciones disponibles:", menu_options, index=0)
+
+# ========================
+# Cargar datos
+# ========================
 
 SHEET_ID = "1reTzFeErA14TRoxaA-PPD5OGfYYXH3Z_0i9bRQeLap8"
 URL_BASE = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet="
@@ -130,30 +165,14 @@ except Exception:
     st.error("❌ No se pudieron cargar los datos. Revisa la conexión o los permisos de la hoja Google Sheets.")
     st.stop()
 
-# Normalizar columna Vendida
 if "Vendida" in df_prendas.columns:
     df_prendas["Vendida"] = df_prendas["Vendida"].astype(str).str.lower().map({"true": True, "false": False})
 
 prendas_limpio = limpiar_df(df_prendas)
 
-# ================
-# Secciones (menú)
-# ================
-
-menu_options = [
-    "Buscar Cliente",
-    "Consultar Stock",
-    "Consultar Vendidos",
-    "Generar Avisos de Hoy",
-    "Reporte Diario",
-    "Informe Cliente por Entregas"
-]
-
-seccion = st.sidebar.selectbox("🪄 Secciones", menu_options, format_func=lambda x: f"▸ {x}", index=0)
-
-# ================
-# Secciones
-# ================
+# ========================
+# Secciones funcionales
+# ========================
 
 if seccion == "Buscar Cliente":
     nombre = st.text_input("Nombre cliente")
@@ -165,7 +184,7 @@ if seccion == "Buscar Cliente":
             st.success(f"Se encontraron {len(clientes_match)} cliente(s)")
             st.dataframe(limpiar_df(clientes_match), use_container_width=True)
             ids = clientes_match["ID Cliente"].unique()
-            prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx) "].isin(ids)]
+            prendas_cliente = prendas_limpio[prendas_limpio["Nº Cliente (Formato C-xxx)"].isin(ids)]
             st.subheader("👜 Prendas del cliente")
             st.dataframe(prendas_cliente, use_container_width=True)
 
