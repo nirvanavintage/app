@@ -630,23 +630,18 @@ elif seccion == "Gestión de Citas":
     import pandas as pd
     from datetime import datetime, timedelta, date
 
-    st.header("📅 Gestión de Citas (Semanal)")
+    st.header("📅 Gestión de Citas")
 
-    # Archivo CSV local
     archivo_csv = "citas.csv"
-
-    # Crear CSV si no existe
     if not os.path.exists(archivo_csv):
         columnas = ["Fecha", "Hora Inicio", "Hora Fin", "Nombre", "Teléfono", "Tipo Visita", "Notas"]
         pd.DataFrame(columns=columnas).to_csv(archivo_csv, index=False)
 
-    # Cargar citas
     df_citas = pd.read_csv(archivo_csv)
     df_citas["Fecha"] = pd.to_datetime(df_citas["Fecha"], errors="coerce").dt.date
     df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str)
     df_citas["Hora Fin"] = df_citas["Hora Fin"].astype(str)
 
-    # Semana actual
     if "semana_inicio" not in st.session_state:
         hoy = date.today()
         st.session_state.semana_inicio = hoy - timedelta(days=hoy.weekday())
@@ -667,7 +662,6 @@ elif seccion == "Gestión de Citas":
     st.markdown(f"### 🗓️ Semana: {semana_inicio.strftime('%d/%m/%Y')} - {semana_fin.strftime('%d/%m/%Y')}")
     st.markdown("### 📆 Disponibilidad semanal")
 
-    # Horarios de 30min de 10:00 a 20:00
     def generar_intervalos():
         horas = []
         for h in range(10, 20):
@@ -679,71 +673,52 @@ elif seccion == "Gestión de Citas":
     dias_semana = [semana_inicio + timedelta(days=i) for i in range(7)]
     nombres_dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
-    # Mostrar tabla
-    st.markdown(
-        "<style>th, td {text-align: center !important;} .element-container {overflow-x: auto;}</style>",
-        unsafe_allow_html=True
-    )
-    import streamlit.components.v1 as components
+    st.markdown("<style>th, td {text-align: center !important;} .element-container {overflow-x: auto;} .reservar-btn {font-size: 12px;}</style>", unsafe_allow_html=True)
 
-    html = "<table style='width:100%; border-collapse: collapse;'>"
-    html += "<tr><th>Hora</th>" + "".join(
-        [f"<th>{nombres_dias[i]}<br>{dias_semana[i].strftime('%d/%m')}</th>" for i in range(7)]) + "</tr>"
+    seleccion = st.empty()
+    tabla_html = "<table style='width:100%; border-collapse: collapse; font-size:14px;'>"
+    tabla_html += "<tr><th>Hora</th>" + "".join([f"<th>{nombres_dias[i]}<br>{dias_semana[i].strftime('%d/%m')}</th>" for i in range(7)]) + "</tr>"
 
+    seleccionado = None
     for inicio, fin in intervalos:
-        html += f"<tr><td><b>{inicio}-{fin}</b></td>"
+        tabla_html += f"<tr><td><b>{inicio}-{fin}</b></td>"
         for dia in dias_semana:
-            ocupado = df_citas[
-                (df_citas["Fecha"] == dia) &
-                (
-                    ((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) |
-                    ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin))
-                )
-            ]
-            key = f"{dia}_{inicio}_{fin}".replace(":", "").replace("-", "")
+            ocupado = df_citas[(df_citas["Fecha"] == dia) & (((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) | ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin)))]
             if ocupado.empty:
-                html += f"<td><form action='#{key}' method='get'><button name='{key}' style='width:100%'>Reservar</button></form></td>"
+                boton_key = f"{dia}_{inicio}_{fin}"
+                if seleccion.button("Reservar", key=boton_key):
+                    seleccionado = (dia, inicio, fin)
             else:
-                html += f"<td style='color:red;'>Ocupado</td>"
-        html += "</tr>"
-    html += "</table>"
+                tabla_html += f"<td style='color:red;'>Ocupado</td>"
+        tabla_html += "</tr>"
+    tabla_html += "</table>"
+    st.markdown(tabla_html, unsafe_allow_html=True)
 
-    components.html(html, height=600, scrolling=True)
+    if seleccionado:
+        dia, inicio, fin = seleccionado
+        st.subheader("➕ Reservar nueva cita")
+        st.info(f"Reservando para el **{dia.strftime('%A %d/%m/%Y')}**, de **{inicio} a {fin}**")
+        nombre = st.text_input("👤 Nombre")
+        telefono = st.text_input("📞 Teléfono")
+        tipo_visita = st.selectbox("🔁 Tipo de visita", ["Entrega", "Devolución"])
+        notas = st.text_area("📝 Notas (opcional)")
 
-    # Mostrar formulario si se ha hecho clic
-    for dia in dias_semana:
-        for inicio, fin in intervalos:
-            key = f"{dia}_{inicio}_{fin}".replace(":", "").replace("-", "")
-            if st.query_params.get(key) == "":
-                st.subheader("➕ Reservar nueva cita")
-                st.info(f"Reservando para el **{dia.strftime('%A %d/%m/%Y')}**, de **{inicio} a {fin}**")
-                nombre = st.text_input("👤 Nombre")
-                telefono = st.text_input("📞 Teléfono")
-                tipo_visita = st.selectbox("🔁 Tipo de visita", ["Entrega", "Devolución"])
-                notas = st.text_area("📝 Notas (opcional)")
+        if st.button("✅ Confirmar reserva"):
+            conflicto = df_citas[(df_citas["Fecha"] == dia) & (((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) | ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin)))]
+            if not conflicto.empty:
+                st.error("❌ Ese hueco ya está ocupado.")
+                st.stop()
 
-                if st.button("✅ Confirmar reserva", key=f"btn_{key}"):
-                    conflicto = df_citas[
-                        (df_citas["Fecha"] == dia) &
-                        (
-                            ((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) |
-                            ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin))
-                        )
-                    ]
-                    if not conflicto.empty:
-                        st.error("❌ Ese hueco ya está ocupado.")
-                        st.stop()
-
-                    nueva = pd.DataFrame({
-                        "Fecha": [dia],
-                        "Hora Inicio": [inicio],
-                        "Hora Fin": [fin],
-                        "Nombre": [nombre],
-                        "Teléfono": [telefono],
-                        "Tipo Visita": [tipo_visita],
-                        "Notas": [notas]
-                    })
-                    df_citas = pd.concat([df_citas, nueva], ignore_index=True)
-                    df_citas.to_csv(archivo_csv, index=False)
-                    st.success("✅ Cita guardada correctamente.")
-                    st.rerun()
+            nueva = pd.DataFrame({
+                "Fecha": [dia],
+                "Hora Inicio": [inicio],
+                "Hora Fin": [fin],
+                "Nombre": [nombre],
+                "Teléfono": [telefono],
+                "Tipo Visita": [tipo_visita],
+                "Notas": [notas]
+            })
+            df_citas = pd.concat([df_citas, nueva], ignore_index=True)
+            df_citas.to_csv(archivo_csv, index=False)
+            st.success("✅ Cita guardada correctamente.")
+            st.rerun()
