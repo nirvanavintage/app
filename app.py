@@ -626,16 +626,28 @@ elif seccion == "Avisos":
     else:
         st.info("No hay nuevos clientes registrados ese día.")
 elif seccion == "Gestión de Citas":
-    from datetime import timedelta, datetime
     import calendar
+    from datetime import timedelta, datetime, time
+    import urllib.parse
+    import os
 
-    st.header("📅 Gestión de Citas - Agenda Semanal")
+    st.header("📅 Gestión de Citas (Semanal)")
 
-    df_citas = cargar("Citas")
+    # ---------- CARGAR O CREAR CSV ----------
+    csv_path = "citas.csv"
+
+    if os.path.exists(csv_path):
+        df_citas = pd.read_csv(csv_path)
+    else:
+        df_citas = pd.DataFrame(columns=["Fecha", "Hora Inicio", "Hora Fin", "Nombre", "Teléfono", "Tipo Visita", "Notas"])
+        df_citas.to_csv(csv_path, index=False)
+
+    # Convertir columnas
     df_citas["Fecha"] = pd.to_datetime(df_citas["Fecha"], errors="coerce")
     df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str)
     df_citas["Hora Fin"] = df_citas["Hora Fin"].astype(str)
 
+    # ---------- CALENDARIO ----------
     if "semana_inicio" not in st.session_state:
         hoy = pd.Timestamp.today().normalize()
         st.session_state.semana_inicio = hoy - timedelta(days=hoy.weekday())
@@ -666,13 +678,26 @@ elif seccion == "Gestión de Citas":
     dias_semana = [semana_inicio + timedelta(days=i) for i in range(7)]
     nombres_dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
+    # ---------- TABLA DE DISPONIBILIDAD ----------
     st.markdown("### 📆 Disponibilidad semanal")
-    st.markdown('<div style="overflow-x:auto; width:100%;">', unsafe_allow_html=True)
 
-    for i, (inicio, fin) in enumerate(intervalos):
-        cols = st.columns([1] + [1 for _ in range(7)])
-        cols[0].write(f"**{inicio}-{fin}**")
-        for j, dia in enumerate(dias_semana):
+    import streamlit.components.v1 as components
+
+    tabla_html = """
+    <style>
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #444; padding: 6px; text-align: center; }
+    a { color: #4da6ff; text-decoration: none; font-weight: bold; }
+    </style>
+    <table>
+    <tr><th>Hora</th>""" + "".join([f"<th>{nombres_dias[i]}<br>{dias_semana[i].strftime('%d/%m')}</th>" for i in range(7)]) + "</tr>"
+
+    if "cita_en_proceso" not in st.session_state:
+        st.session_state.cita_en_proceso = None
+
+    for inicio, fin in intervalos:
+        fila = f"<tr><td>{inicio}-{fin}</td>"
+        for dia in dias_semana:
             ocupado = df_citas[
                 (df_citas["Fecha"].dt.date == dia.date()) &
                 (
@@ -680,18 +705,23 @@ elif seccion == "Gestión de Citas":
                     ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin))
                 )
             ]
-            key_btn = f"reservar_{dia.date()}_{inicio}_{fin}"
             if ocupado.empty:
-                if cols[j + 1].button("Reservar", key=key_btn):
-                    st.session_state.cita_en_proceso = (dia.date(), inicio, fin)
-                    st.rerun()
+                key = f"{dia.date()}_{inicio}_{fin}"
+                fila += f"<td><a href='?reserva={key}'>Reservar</a></td>"
             else:
-                cols[j + 1].write("❌")
+                fila += "<td>❌ Ocupado</td>"
+        fila += "</tr>"
+        tabla_html += fila
 
-    st.markdown('</div>', unsafe_allow_html=True)
+    tabla_html += "</table>"
+    components.html(tabla_html, height=600, scrolling=True)
 
-    if "cita_en_proceso" in st.session_state and st.session_state.cita_en_proceso:
-        dia, inicio, fin = st.session_state.cita_en_proceso
+    # ---------- FORMULARIO DE RESERVA ----------
+    reserva = st.query_params.get("reserva", "")
+    if reserva:
+        fecha_str, inicio, fin = reserva.split("_")
+        dia = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+
         st.subheader("➕ Reservar nueva cita")
         st.info(f"Reservando para el **{calendar.day_name[dia.weekday()]} {dia.strftime('%d/%m/%Y')}**, de **{inicio} a {fin}**")
 
@@ -709,11 +739,11 @@ elif seccion == "Gestión de Citas":
                 )
             ]
             if not conflicto.empty:
-                st.error("❌ Ese hueco ya ha sido ocupado.")
+                st.error("❌ Ese hueco ya está ocupado.")
                 st.stop()
 
             nueva = pd.DataFrame({
-                "Fecha": [dia],
+                "Fecha": [str(dia)],
                 "Hora Inicio": [inicio],
                 "Hora Fin": [fin],
                 "Nombre": [nombre],
@@ -721,19 +751,9 @@ elif seccion == "Gestión de Citas":
                 "Tipo Visita": [tipo_visita],
                 "Notas": [notas]
             })
+
             df_actualizado = pd.concat([df_citas, nueva], ignore_index=True)
-
-            try:
-                from gspread_pandas import Spread
-                from google.oauth2 import service_account
-
-                scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-                credentials = service_account.Credentials.from_service_account_info(
-                    st.secrets["gcp_service_account"], scopes=scope)
-                spread = Spread(st.session_state.sheet_id, creds=credentials)
-                spread.df_to_sheet(df_actualizado, sheet="Citas", index=False)
-                st.success("✅ Cita guardada correctamente.")
-                del st.session_state.cita_en_proceso
-                st.rerun()
-            except Exception as e:
-                st.error(f"❌ Error al guardar: {e}")
+            df_actualizado.to_csv(csv_path, index=False)
+            st.success("✅ Cita guardada correctamente.")
+            st.experimental_set_query_params()  # Elimina la URL ?reserva
+            st.rerun()
