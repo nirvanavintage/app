@@ -626,66 +626,118 @@ elif seccion == "Avisos":
     else:
         st.info("No hay nuevos clientes registrados ese día.")
 elif seccion == "Gestión de Citas":
-    from datetime import timedelta
+    from datetime import timedelta, datetime, time
+    import calendar
 
-    st.header("📅 Gestión de Citas - Agenda Semanal")
+    st.header("📅 Gestión de Citas (Semanal)")
 
-    # Cargar citas desde Google Sheets
     df_citas = cargar("Citas")
     df_citas["Fecha"] = pd.to_datetime(df_citas["Fecha"], errors="coerce")
-    df_citas = df_citas.sort_values(["Fecha", "Hora"])
+    df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str)
+    df_citas["Hora Fin"] = df_citas["Hora Fin"].astype(str)
 
-    # Horario disponible: de 10:00 a 20:00 cada hora
-    horario = [f"{h:02d}:00" for h in range(10, 21)]
+    # Inicializar semana en sesión
+    if "semana_inicio" not in st.session_state:
+        hoy = pd.Timestamp.today().normalize()
+        st.session_state.semana_inicio = hoy - timedelta(days=hoy.weekday())
 
-    # Calcular semana actual (lunes a domingo)
-    hoy = pd.Timestamp.today().normalize()
-    inicio_semana = hoy - timedelta(days=hoy.weekday())  # lunes
-    fin_semana = inicio_semana + timedelta(days=6)       # domingo
+    semana_inicio = st.session_state.semana_inicio
+    semana_fin = semana_inicio + timedelta(days=6)
 
-    st.markdown(f"### 🗓️ Semana: {inicio_semana.strftime('%d/%m/%Y')} - {fin_semana.strftime('%d/%m/%Y')}")
+    # Navegación por semanas
+    col1, col2, col3 = st.columns([1, 4, 1])
+    with col1:
+        if st.button("⬅ Semana anterior"):
+            st.session_state.semana_inicio -= timedelta(days=7)
+            st.rerun()
+    with col3:
+        if st.button("Semana siguiente ➡"):
+            st.session_state.semana_inicio += timedelta(days=7)
+            st.rerun()
 
-    # Mostrar cada día de la semana
-    for i in range(7):
-        dia = inicio_semana + timedelta(days=i)
-        fecha_str = dia.strftime("%A %d/%m/%Y")
-        citas_dia = df_citas[df_citas["Fecha"].dt.date == dia.date()]
-        horas_ocupadas = citas_dia["Hora"].tolist()
+    # Mostrar semana actual
+    st.markdown(f"### 🗓️ Semana: {semana_inicio.strftime('%d/%m/%Y')} - {semana_fin.strftime('%d/%m/%Y')}")
 
-        with st.expander(f"📌 {fecha_str}"):
-            for hora in horario:
-                if hora in horas_ocupadas:
-                    cita = citas_dia[citas_dia["Hora"] == hora].iloc[0]
-                    nombre = cita["Nombre"]
-                    tel = cita["Teléfono"]
-                    st.markdown(f"🕒 **{hora}** - 🧍 {nombre} | 📞 {tel}")
-                else:
-                    with st.container():
-                        col1, col2 = st.columns([3, 1])
-                        with col1:
-                            st.markdown(f"🕒 **{hora}** - ✅ _Disponible_")
-                        with col2:
-                            if st.button("Reservar", key=f"{dia}-{hora}"):
-                                st.session_state["cita_fecha"] = dia
-                                st.session_state["cita_hora"] = hora
-                                st.session_state["modo_reserva"] = True
-                                st.rerun()
+    # Definir horario de 30 min entre 10:00 y 20:00
+    def generar_intervalos():
+        horas = []
+        for h in range(10, 20):
+            horas.append((f"{h:02d}:00", f"{h:02d}:30"))
+            horas.append((f"{h:02d}:30", f"{(h + 1):02d}:00"))
+        return horas
 
-    # Modo reserva activado
-    if st.session_state.get("modo_reserva", False):
-        st.subheader("➕ Añadir nueva cita")
-        st.info(f"Cita para el día **{st.session_state['cita_fecha'].strftime('%A %d/%m/%Y')}** a las **{st.session_state['cita_hora']}**")
+    intervalos = generar_intervalos()
+    dias_semana = [semana_inicio + timedelta(days=i) for i in range(7)]
+    nombres_dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
-        nombre = st.text_input("👤 Nombre de la clienta")
+    # Crear tabla horizontal de disponibilidad
+    st.markdown("### 📆 Disponibilidad semanal")
+    tabla = "| Hora | " + " | ".join([f"{nombres_dias[i]}<br>{dias_semana[i].strftime('%d/%m')}" for i in range(7)]) + " |\n"
+    tabla += "|" + "------|" * 7 + "------|\n"
+
+    for inicio, fin in intervalos:
+        fila = f"| {inicio}-{fin} "
+        for dia in dias_semana:
+            ocupado = df_citas[
+                (df_citas["Fecha"].dt.date == dia.date()) &
+                (
+                    ((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) |
+                    ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin))
+                )
+            ]
+            if ocupado.empty:
+                key_btn = f"{dia.date()}_{inicio}_{fin}"
+                fila += f"| [Reservar](#{key_btn}) "
+            else:
+                fila += "| ❌ Ocupado "
+        fila += "|\n"
+        tabla += fila
+
+    st.markdown(tabla, unsafe_allow_html=True)
+
+    # Reservar si se ha clicado
+    import urllib.parse
+    clicked = st.query_params.get("href", "")
+
+    if "cita_en_proceso" not in st.session_state:
+        st.session_state.cita_en_proceso = None
+
+    for dia in dias_semana:
+        for inicio, fin in intervalos:
+            key = f"{dia.date()}_{inicio}_{fin}"
+            if f"#{key}" in st._get_script_run_ctx().query_string:
+                st.session_state.cita_en_proceso = (dia.date(), inicio, fin)
+
+    if st.session_state.cita_en_proceso:
+        dia, inicio, fin = st.session_state.cita_en_proceso
+        st.subheader("➕ Reservar nueva cita")
+        st.info(f"Reservando para el **{calendar.day_name[dia.weekday()]} {dia.strftime('%d/%m/%Y')}**, de **{inicio} a {fin}**")
+
+        nombre = st.text_input("👤 Nombre")
         telefono = st.text_input("📞 Teléfono")
+        tipo_visita = st.selectbox("🔁 Tipo de visita", ["Entrega", "Devolución"])
         notas = st.text_area("📝 Notas (opcional)")
 
-        if st.button("✅ Confirmar cita"):
+        if st.button("✅ Confirmar reserva"):
+            # Validar que no haya solape
+            conflicto = df_citas[
+                (df_citas["Fecha"].dt.date == dia) &
+                (
+                    ((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) |
+                    ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin))
+                )
+            ]
+            if not conflicto.empty:
+                st.error("❌ Ese hueco ya ha sido ocupado.")
+                st.stop()
+
             nueva = pd.DataFrame({
-                "Fecha": [st.session_state['cita_fecha']],
-                "Hora": [st.session_state['cita_hora']],
+                "Fecha": [dia],
+                "Hora Inicio": [inicio],
+                "Hora Fin": [fin],
                 "Nombre": [nombre],
                 "Teléfono": [telefono],
+                "Tipo Visita": [tipo_visita],
                 "Notas": [notas]
             })
             df_actualizado = pd.concat([df_citas, nueva], ignore_index=True)
@@ -699,9 +751,8 @@ elif seccion == "Gestión de Citas":
                     st.secrets["gcp_service_account"], scopes=scope)
                 spread = Spread(st.session_state.sheet_id, creds=credentials)
                 spread.df_to_sheet(df_actualizado, sheet="Citas", index=False)
-                st.success("✅ Cita añadida correctamente.")
-                st.session_state["modo_reserva"] = False
+                st.success("✅ Cita guardada correctamente.")
+                del st.session_state.cita_en_proceso
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Error al guardar: {e}")
-
