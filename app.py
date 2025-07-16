@@ -633,7 +633,11 @@ elif seccion == "Gestión de Citas":
 
     df_citas = cargar("Citas")
     df_citas["Fecha"] = pd.to_datetime(df_citas["Fecha"], errors="coerce")
-    df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str)
+    if "Hora Inicio" not in df_citas.columns:
+        st.error("⚠️ ERROR: La columna 'Hora Inicio' no se encuentra en la hoja. Verifica que el encabezado esté en la celda B1 exactamente y sin espacios.")
+        st.stop()
+        df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str)
+
     df_citas["Hora Fin"] = df_citas["Hora Fin"].astype(str)
 
     # Inicializar semana en sesión
