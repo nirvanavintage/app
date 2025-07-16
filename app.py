@@ -626,16 +626,15 @@ elif seccion == "Avisos":
     else:
         st.info("No hay nuevos clientes registrados ese día.")
 elif seccion == "Gestión de Citas":
-    from datetime import timedelta, datetime, time
+    from datetime import timedelta, datetime
     import calendar
 
     st.header("📅 Gestión de Citas - Agenda Semanal")
 
     df_citas = cargar("Citas")
-    df_citas.columns = df_citas.columns.str.strip()  # limpiar espacios
     df_citas["Fecha"] = pd.to_datetime(df_citas["Fecha"], errors="coerce")
-    df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str).str.strip()
-    df_citas["Hora Fin"] = df_citas["Hora Fin"].astype(str).str.strip()
+    df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str)
+    df_citas["Hora Fin"] = df_citas["Hora Fin"].astype(str)
 
     if "semana_inicio" not in st.session_state:
         hoy = pd.Timestamp.today().normalize()
@@ -654,7 +653,7 @@ elif seccion == "Gestión de Citas":
             st.session_state.semana_inicio += timedelta(days=7)
             st.rerun()
 
-    st.markdown(f"### Semana: {semana_inicio.strftime('%d/%m/%Y')} - {semana_fin.strftime('%d/%m/%Y')}")
+    st.markdown(f"### 🗓️ Semana: {semana_inicio.strftime('%d/%m/%Y')} - {semana_fin.strftime('%d/%m/%Y')}")
 
     def generar_intervalos():
         horas = []
@@ -668,15 +667,12 @@ elif seccion == "Gestión de Citas":
     nombres_dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
     st.markdown("### 📆 Disponibilidad semanal")
-    st.markdown('<div style="overflow-x:auto"><table>', unsafe_allow_html=True)
+    st.markdown('<div style="overflow-x:auto; width:100%;">', unsafe_allow_html=True)
 
-    header_html = "<tr><th>Hora</th>" + "".join(
-        [f"<th>{nombres_dias[i]}<br>{dias_semana[i].strftime('%d/%m')}</th>" for i in range(7)]) + "</tr>"
-    st.markdown(header_html, unsafe_allow_html=True)
-
-    for inicio, fin in intervalos:
-        fila = f"<tr><td>{inicio}-{fin}</td>"
-        for dia in dias_semana:
+    for i, (inicio, fin) in enumerate(intervalos):
+        cols = st.columns([1] + [1 for _ in range(7)])
+        cols[0].write(f"**{inicio}-{fin}**")
+        for j, dia in enumerate(dias_semana):
             ocupado = df_citas[
                 (df_citas["Fecha"].dt.date == dia.date()) &
                 (
@@ -684,22 +680,18 @@ elif seccion == "Gestión de Citas":
                     ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin))
                 )
             ]
+            key_btn = f"reservar_{dia.date()}_{inicio}_{fin}"
             if ocupado.empty:
-                key_btn = f"{dia.date()}_{inicio}_{fin}"
-                fila += f"<td><a href='?reservar={key_btn}'>Reservar</a></td>"
+                if cols[j + 1].button("Reservar", key=key_btn):
+                    st.session_state.cita_en_proceso = (dia.date(), inicio, fin)
+                    st.rerun()
             else:
-                fila += "<td>❌</td>"
-        fila += "</tr>"
-        st.markdown(fila, unsafe_allow_html=True)
+                cols[j + 1].write("❌")
 
-    st.markdown("</table></div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # Detectar reserva
-    if "reservar" in st.query_params:
-        key = st.query_params["reservar"]
-        dia_str, inicio, fin = key.split("_")
-        dia = datetime.strptime(dia_str, "%Y-%m-%d").date()
-
+    if "cita_en_proceso" in st.session_state and st.session_state.cita_en_proceso:
+        dia, inicio, fin = st.session_state.cita_en_proceso
         st.subheader("➕ Reservar nueva cita")
         st.info(f"Reservando para el **{calendar.day_name[dia.weekday()]} {dia.strftime('%d/%m/%Y')}**, de **{inicio} a {fin}**")
 
@@ -717,7 +709,7 @@ elif seccion == "Gestión de Citas":
                 )
             ]
             if not conflicto.empty:
-                st.error("❌ Ese hueco ya está reservado.")
+                st.error("❌ Ese hueco ya ha sido ocupado.")
                 st.stop()
 
             nueva = pd.DataFrame({
@@ -741,6 +733,7 @@ elif seccion == "Gestión de Citas":
                 spread = Spread(st.session_state.sheet_id, creds=credentials)
                 spread.df_to_sheet(df_actualizado, sheet="Citas", index=False)
                 st.success("✅ Cita guardada correctamente.")
+                del st.session_state.cita_en_proceso
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Error al guardar: {e}")
