@@ -8,3 +8,4 @@ pdfkit
 wkhtmltopdf
 fpdf2
 xlsxwriter
+gspread-pandas
