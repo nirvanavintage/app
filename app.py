@@ -131,6 +131,7 @@ with col3:
         st.session_state.seccion = "Reporte Diario"
     if st.button("📅 Gestión de Citas"):
         st.session_state.seccion = "Gestión de Citas"
+        
     if st.button("📩 Avisos"):
         st.session_state.seccion = "Avisos"
 
@@ -624,3 +625,83 @@ elif seccion == "Avisos":
             st.divider()
     else:
         st.info("No hay nuevos clientes registrados ese día.")
+elif seccion == "Gestión de Citas":
+    from datetime import timedelta
+
+    st.header("📅 Gestión de Citas - Agenda Semanal")
+
+    # Cargar citas desde Google Sheets
+    df_citas = cargar("Citas")
+    df_citas["Fecha"] = pd.to_datetime(df_citas["Fecha"], errors="coerce")
+    df_citas = df_citas.sort_values(["Fecha", "Hora"])
+
+    # Horario disponible: de 10:00 a 20:00 cada hora
+    horario = [f"{h:02d}:00" for h in range(10, 21)]
+
+    # Calcular semana actual (lunes a domingo)
+    hoy = pd.Timestamp.today().normalize()
+    inicio_semana = hoy - timedelta(days=hoy.weekday())  # lunes
+    fin_semana = inicio_semana + timedelta(days=6)       # domingo
+
+    st.markdown(f"### 🗓️ Semana: {inicio_semana.strftime('%d/%m/%Y')} - {fin_semana.strftime('%d/%m/%Y')}")
+
+    # Mostrar cada día de la semana
+    for i in range(7):
+        dia = inicio_semana + timedelta(days=i)
+        fecha_str = dia.strftime("%A %d/%m/%Y")
+        citas_dia = df_citas[df_citas["Fecha"].dt.date == dia.date()]
+        horas_ocupadas = citas_dia["Hora"].tolist()
+
+        with st.expander(f"📌 {fecha_str}"):
+            for hora in horario:
+                if hora in horas_ocupadas:
+                    cita = citas_dia[citas_dia["Hora"] == hora].iloc[0]
+                    nombre = cita["Nombre"]
+                    tel = cita["Teléfono"]
+                    st.markdown(f"🕒 **{hora}** - 🧍 {nombre} | 📞 {tel}")
+                else:
+                    with st.container():
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            st.markdown(f"🕒 **{hora}** - ✅ _Disponible_")
+                        with col2:
+                            if st.button("Reservar", key=f"{dia}-{hora}"):
+                                st.session_state["cita_fecha"] = dia
+                                st.session_state["cita_hora"] = hora
+                                st.session_state["modo_reserva"] = True
+                                st.rerun()
+
+    # Modo reserva activado
+    if st.session_state.get("modo_reserva", False):
+        st.subheader("➕ Añadir nueva cita")
+        st.info(f"Cita para el día **{st.session_state['cita_fecha'].strftime('%A %d/%m/%Y')}** a las **{st.session_state['cita_hora']}**")
+
+        nombre = st.text_input("👤 Nombre de la clienta")
+        telefono = st.text_input("📞 Teléfono")
+        notas = st.text_area("📝 Notas (opcional)")
+
+        if st.button("✅ Confirmar cita"):
+            nueva = pd.DataFrame({
+                "Fecha": [st.session_state['cita_fecha']],
+                "Hora": [st.session_state['cita_hora']],
+                "Nombre": [nombre],
+                "Teléfono": [telefono],
+                "Notas": [notas]
+            })
+            df_actualizado = pd.concat([df_citas, nueva], ignore_index=True)
+
+            try:
+                from gspread_pandas import Spread
+                from google.oauth2 import service_account
+
+                scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+                credentials = service_account.Credentials.from_service_account_info(
+                    st.secrets["gcp_service_account"], scopes=scope)
+                spread = Spread(st.session_state.sheet_id, creds=credentials)
+                spread.df_to_sheet(df_actualizado, sheet="Citas", index=False)
+                st.success("✅ Cita añadida correctamente.")
+                st.session_state["modo_reserva"] = False
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Error al guardar: {e}")
+
