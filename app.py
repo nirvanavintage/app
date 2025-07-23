@@ -626,10 +626,6 @@ elif seccion == "Avisos":
     else:
         st.info("No hay nuevos clientes registrados ese día.")
 elif seccion == "Gestión de Citas":
-    import os
-    import pandas as pd
-    from datetime import datetime, timedelta, date
-
     st.header("📅 Gestión de Citas")
 
     archivo_csv = "citas.csv"
@@ -639,8 +635,6 @@ elif seccion == "Gestión de Citas":
 
     df_citas = pd.read_csv(archivo_csv)
     df_citas["Fecha"] = pd.to_datetime(df_citas["Fecha"], errors="coerce").dt.date
-    df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str)
-    df_citas["Hora Fin"] = df_citas["Hora Fin"].astype(str)
 
     if "semana_inicio" not in st.session_state:
         hoy = date.today()
@@ -660,39 +654,35 @@ elif seccion == "Gestión de Citas":
             st.rerun()
 
     st.markdown(f"### 🗓️ Semana: {semana_inicio.strftime('%d/%m/%Y')} - {semana_fin.strftime('%d/%m/%Y')}")
-    st.markdown("### 📆 Disponibilidad semanal")
 
-    def generar_intervalos():
-        horas = []
-        for h in range(10, 20):
-            horas.append((f"{h:02d}:00", f"{h:02d}:30"))
-            horas.append((f"{h:02d}:30", f"{(h + 1):02d}:00"))
-        return horas
-
-    intervalos = generar_intervalos()
+    intervalos = [(f"{h:02d}:00", f"{h:02d}:30") for h in range(10, 20)] + [(f"{h:02d}:30", f"{h+1:02d}:00") for h in range(10, 19)]
+    intervalos = sorted(intervalos)
     dias_semana = [semana_inicio + timedelta(days=i) for i in range(7)]
     nombres_dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
-    st.markdown("<style>th, td {text-align: center !important;} .element-container {overflow-x: auto;} .reservar-btn {font-size: 12px;}</style>", unsafe_allow_html=True)
-
-    seleccion = st.empty()
-    tabla_html = "<table style='width:100%; border-collapse: collapse; font-size:14px;'>"
-    tabla_html += "<tr><th>Hora</th>" + "".join([f"<th>{nombres_dias[i]}<br>{dias_semana[i].strftime('%d/%m')}</th>" for i in range(7)]) + "</tr>"
+    st.subheader("📆 Disponibilidad Semanal")
 
     seleccionado = None
+
     for inicio, fin in intervalos:
-        tabla_html += f"<tr><td><b>{inicio}-{fin}</b></td>"
-        for dia in dias_semana:
-            ocupado = df_citas[(df_citas["Fecha"] == dia) & (((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) | ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin)))]
+        st.markdown(f"### ⏰ {inicio} - {fin}")
+        cols = st.columns(7)
+        for i, dia in enumerate(dias_semana):
+            col = cols[i]
+            fecha_str = dia.strftime('%d/%m')
+            col.markdown(f"**{nombres_dias[i]} ({fecha_str})**")
+
+            ocupado = df_citas[
+                (df_citas["Fecha"] == dia) &
+                (((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) |
+                 ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin)))
+            ]
             if ocupado.empty:
                 boton_key = f"{dia}_{inicio}_{fin}"
-                if seleccion.button("Reservar", key=boton_key):
+                if col.button("Reservar", key=boton_key):
                     seleccionado = (dia, inicio, fin)
             else:
-                tabla_html += f"<td style='color:red;'>Ocupado</td>"
-        tabla_html += "</tr>"
-    tabla_html += "</table>"
-    st.markdown(tabla_html, unsafe_allow_html=True)
+                col.markdown("❌ Ocupado")
 
     if seleccionado:
         dia, inicio, fin = seleccionado
@@ -704,7 +694,11 @@ elif seccion == "Gestión de Citas":
         notas = st.text_area("📝 Notas (opcional)")
 
         if st.button("✅ Confirmar reserva"):
-            conflicto = df_citas[(df_citas["Fecha"] == dia) & (((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) | ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin)))]
+            conflicto = df_citas[
+                (df_citas["Fecha"] == dia) &
+                (((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) |
+                 ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin)))
+            ]
             if not conflicto.empty:
                 st.error("❌ Ese hueco ya está ocupado.")
                 st.stop()
