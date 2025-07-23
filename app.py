@@ -122,44 +122,37 @@ df_prendas = pd.read_csv(archivo_prendas)
 df_clientes = pd.read_csv(archivo_clientes)
 
 
-# Sección inicializada para evitar NameError
+from streamlit_option_menu import option_menu
+
+# Inicializar sección si no existe
 if "seccion" not in st.session_state:
     st.session_state.seccion = ""
 
-col1, col2, col3 = st.columns([1, 1, 1])
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    if st.button("➕ Añadir Prenda"):
-        st.session_state.seccion = "Añadir Prenda"
-    if st.button("🔍 Añadir Cliente"):
-        st.session_state.seccion = "Añadir Cliente"
-    if st.button("✔️ Marcar Vendida"):
-        st.session_state.seccion = "Marcar Vendida"
-
-
-with col2:
-    if st.button("📦 Consultar Stock"):
-        st.session_state.seccion = "Consultar Stock"
-    if st.button("✅ Consultar Vendidos"):
-        st.session_state.seccion = "Consultar Vendidos"
-    if st.button("🏷️ Generador de Etiquetas"):
-        st.session_state.seccion = "Generador de Etiquetas"
-
-with col3:
-    if st.button("📑 Reporte Diario"):
-        st.session_state.seccion = "Reporte Diario"
-    if st.button("📅 Gestión de Citas"):
-        st.session_state.seccion = "Gestión de Citas"
-    if st.button("📩 Avisos"):
-        st.session_state.seccion = "Avisos"
+# --- MENÚ LATERAL VISUAL Y DESPLEGABLE ---
+with st.sidebar:
+    st.markdown("## 📋 Menú Principal")
+    opcion = option_menu(
+        menu_title="Navegación",
+        options=[
+            "Añadir Cliente", "Añadir Prenda", "Marcar Vendida",
+            "Consultar Stock", "Consultar Vendidos", "Generador de Etiquetas",
+            "Reporte Diario", "Gestión de Citas", "Avisos"
+        ],
+        icons=[
+            "person-plus", "plus-square", "check-square",
+            "box", "check2-circle", "tag",
+            "file-earmark-text", "calendar2-check", "bell"
+        ],
+        menu_icon="cast",
+        default_index=0,
+        orientation="vertical"
+    )
+    st.session_state.seccion = opcion
 
 # Si no hay sección seleccionada aún
 if not st.session_state.seccion:
     st.info("Selecciona una sección para comenzar.")
     st.stop()
-
 # Guardamos la sección activa
 seccion = st.session_state.seccion
 
