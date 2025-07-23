@@ -14,6 +14,31 @@ from datetime import datetime
 RUTA_CLIENTES = "clientes.csv"
 RUTA_PRENDAS = "prendas.csv"
 
+import streamlit as st
+
+# --- BLOQUE DE AUTENTICACIÓN ---
+st.set_page_config(page_title="Nirvana App", layout="wide")
+
+# Puedes cambiar estas credenciales
+USUARIO = "nirvana"
+CONTRASENA = "nirvana2025"
+
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+
+if not st.session_state.autenticado:
+    st.title("🔐 Acceso a la App")
+    usuario_input = st.text_input("Usuario")
+    contrasena_input = st.text_input("Contraseña", type="password")
+    if st.button("Entrar"):
+        if usuario_input == USUARIO and contrasena_input == CONTRASENA:
+            st.session_state.autenticado = True
+            st.success("✅ Acceso concedido")
+            st.experimental_rerun()
+        else:
+            st.error("❌ Usuario o contraseña incorrectos")
+    st.stop()
+
 # --- Generador de Etiquetas ---
 from fpdf import FPDF
 
