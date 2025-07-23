@@ -11,48 +11,29 @@ import tempfile
 import pandas as pd
 import os
 from datetime import datetime
+RUTA_CLIENTES = "clientes.csv"
+RUTA_PRENDAS = "prendas.csv"
 
-# Crear clientes.csv con columnas adecuadas si no existe
-if not os.path.exists("clientes.csv"):
-    df_clientes = pd.DataFrame(columns=[
-        "ID Cliente",
-        "Nombre y Apellidos",
-        "Teléfono",
-        "Email",
-        "Fecha de Alta"
-    ])
-    df_clientes.to_csv("clientes.csv", index=False)
+COLUMNAS_CLIENTES = [
+    "ID Cliente", "Nombre y Apellidos", "Teléfono", "Fecha de Alta", "Número Formulario"
+]
 
-# Crear prendas.csv con columnas adecuadas si no existe
-if not os.path.exists("prendas.csv"):
-    df_prendas = pd.DataFrame(columns=[
-        "ID Prenda",
-        "Nº Cliente (Formato C-xxx)",
-        "Fecha de recepción",
-        "Tipo de prenda",
-        "Talla",
-        "Marca",
-        "Caracteristicas (Color, estampado, material...)",
-        "Precio",
-        "¿Donación o devolución?",
-        "¿Prenda de lujo?",
-        "Fecha Venta Estimada",
-        "Fecha Vendida",
-        "% Cliente",
-        "Vendida"
-    ])
-    df_prendas.to_csv("prendas.csv", index=False)
+COLUMNAS_PRENDAS = [
+    "ID Prenda", "Nº Cliente (Formato C-xxx)", "Tipo de prenda", "Talla", "Precio",
+    "¿Donación o devolución?", "Fecha de recepción", "¿Lujo?", "% Beneficio Cliente",
+    "Vendida", "Fecha Vendida", "Fecha Aviso"
+]
 
-import random
-from datetime import timedelta
+# Crear si no existen
+if not os.path.exists(RUTA_CLIENTES):
+    pd.DataFrame(columns=COLUMNAS_CLIENTES).to_csv(RUTA_CLIENTES, index=False)
 
-# Cargar archivos existentes
-df_clientes = pd.read_csv("clientes.csv")
-df_prendas = pd.read_csv("prendas.csv")
+if not os.path.exists(RUTA_PRENDAS):
+    pd.DataFrame(columns=COLUMNAS_PRENDAS).to_csv(RUTA_PRENDAS, index=False)
 
-# Fechas de esta semana
-hoy = datetime.today().date()
-dias_semana = [hoy - timedelta(days=i) for i in range(7)]
+# Carga
+df_clientes = pd.read_csv(RUTA_CLIENTES)
+df_prendas = pd.read_csv(RUTA_PRENDAS)
 
 def texto_fpdf(texto):
     if not isinstance(texto, str):
@@ -129,8 +110,8 @@ st.markdown("## 📂 Selecciona una sección")
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("🔍 Buscar Cliente"):
-        st.session_state.seccion = "Buscar Cliente"
+    if st.button("🔍 Añadir Cliente"):
+        st.session_state.seccion = "Añadir Cliente"
     if st.button("📦 Consultar Stock"):
         st.session_state.seccion = "Consultar Stock"
     if st.button("➕ Añadir Prenda"):
@@ -164,164 +145,89 @@ seccion = st.session_state.seccion
 df_prendas["Vendida"] = df_prendas["Vendida"].astype(str).str.lower().isin(["true", "1", "yes", "x"])
 df_prendas["Fecha Vendida"] = pd.to_datetime(df_prendas["Fecha Vendida"], errors="coerce")
 df_prendas["Fecha de recepción"] = pd.to_datetime(df_prendas["Fecha de recepción"], errors="coerce")
-# --- Buscar Cliente ---
-if seccion == "Buscar Cliente":
-    st.header("🔍 Buscar Cliente")
-    nombres_disponibles = df_clientes["Nombre"].dropna().unique().tolist()
-    nombre = st.selectbox("Selecciona el cliente", sorted(nombres_disponibles))
 
-    if nombre:
-        resultados = df_clientes[df_clientes["Nombre"] == nombre]
-        st.subheader("📄 Datos del Cliente")
-        st.dataframe(resultados, use_container_width=True)
-
-        if not resultados.empty:
-            id_cliente = resultados.iloc[0].get("ID Cliente", "Desconocido")
-            nombre_cliente = resultados.iloc[0].get("Nombre", "Sin Nombre")
-            prendas_cliente = df_prendas[df_prendas["Nº Cliente (Formato C-xxx)"] == id_cliente]
-
-            st.subheader("👜 Prendas del Cliente")
-            st.dataframe(prendas_cliente, use_container_width=True)
-
-            if st.button("📄 Descargar Informe Cliente"):
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(0, 10, f"Informe del cliente {id_cliente} {nombre_cliente}", ln=True, align='C')
-                pdf.ln(10)
-
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 8, "Datos del cliente:", ln=True)
-                for col in ["ID Cliente", "Teléfono", "Email", "Fecha Alta"]:
-                    valor = resultados.iloc[0].get(col, "")
-                    pdf.set_font("Arial", '', 11)
-                    pdf.cell(0, 7, f"{col}: {texto_fpdf(str(valor))}", ln=True)
-
-                pdf.ln(5)
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(0, 8, "Prendas entregadas:", ln=True)
-
-                if not prendas_cliente.empty:
-                    prendas_cliente = prendas_cliente.sort_values("Fecha de recepción")
-                    fecha_actual = None
-                    for _, row in prendas_cliente.iterrows():
-                        fecha_recepcion = row.get("Fecha de recepción")
-                        if pd.notna(fecha_recepcion):
-                            fecha_str = fecha_recepcion.strftime("%d/%m/%Y")
-                            if fecha_str != fecha_actual:
-                                pdf.ln(5)
-                                pdf.set_font("Arial", 'B', 11)
-                                pdf.cell(0, 7, f"Recepción: {fecha_str}", ln=True)
-                                fecha_actual = fecha_str
-                        pdf.set_font("Arial", '', 10)
-                        descripcion = f"- {row.get('Tipo de prenda', '')} | Talla {row.get('Talla', '')} | {row.get('Caracteristicas (Color, estampado, material...)', '')}"
-                        pdf.cell(0, 6, texto_fpdf(descripcion), ln=True)
-                else:
-                    pdf.set_font("Arial", '', 10)
-                    pdf.cell(0, 6, "No hay prendas registradas para este cliente.", ln=True)
-
-                buffer = BytesIO()
-                pdf.output(buffer)
-                buffer.seek(0)
-                st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
-elif seccion == "Añadir Cliente":
-    st.header("➕ Añadir Cliente")
+if seccion == "Añadir Cliente":
+    st.header("🆕 Alta de Cliente")
 
     nombre = st.text_input("Nombre y Apellidos")
     telefono = st.text_input("Teléfono")
-    dni = st.text_input("DNI")
-    num_formulario = st.number_input("Nº de Formulario", step=1, min_value=1)
+    num_formulario = st.text_input("Número de Formulario")
 
-    if st.button("📝 Guardar Cliente"):
-        if nombre and telefono and dni:
-            # Cargar o crear archivo
-            try:
-                clientes_df = pd.read_csv("Clientes.csv")
-            except FileNotFoundError:
-                clientes_df = pd.DataFrame(columns=["Marca temporal", "ID Cliente", "Nombre y Apellidos", "Teléfono", "Fecha de Alta", "DNI", "Nº de Formulario"])
-
-            # Generar ID único
-            ids_existentes = clientes_df["ID Cliente"].tolist()
-            nuevo_id = 1
-            while f"C-{str(nuevo_id).zfill(3)}" in ids_existentes:
-                nuevo_id += 1
-            id_cliente = f"C-{str(nuevo_id).zfill(3)}"
+    if st.button("Guardar Cliente"):
+        if not nombre or not telefono or not num_formulario:
+            st.warning("Completa todos los campos.")
+        else:
+            # ID Cliente único
+            existentes = df_clientes["ID Cliente"].dropna().tolist()
+            i = 1
+            while f"C-{i:03}" in existentes:
+                i += 1
+            nuevo_id = f"C-{i:03}"
 
             nuevo_cliente = {
-                "Marca temporal": pd.Timestamp.now(),
-                "ID Cliente": id_cliente,
+                "ID Cliente": nuevo_id,
                 "Nombre y Apellidos": nombre,
                 "Teléfono": telefono,
-                "Fecha de Alta": pd.Timestamp.today().date(),
-                "DNI": dni,
-                "Nº de Formulario": num_formulario
+                "Fecha de Alta": date.today().isoformat(),
+                "Número Formulario": num_formulario
             }
 
-            clientes_df = pd.concat([clientes_df, pd.DataFrame([nuevo_cliente])], ignore_index=True)
-            clientes_df.to_csv("Clientes.csv", index=False)
-            st.success(f"✅ Cliente {id_cliente} guardado correctamente.")
-        else:
-            st.warning("❗ Rellena todos los campos obligatorios.")
-
+            df_clientes.loc[len(df_clientes)] = nuevo_cliente
+            df_clientes.to_csv(RUTA_CLIENTES, index=False)
+            st.success(f"Cliente {nuevo_id} guardado.")
 elif seccion == "Añadir Prenda":
-    st.header("➕ Añadir Nueva Prenda")
+    st.header("👕 Añadir Nueva Prenda")
 
-    id_cliente = st.text_input("ID Cliente (formato C-xxx)")
-    tipo = st.selectbox("Tipo de prenda", ["Camiseta", "Pantalón", "Vestido", "Chaqueta", "Complemento", "Otro"])
+    clientes_disponibles = df_clientes["ID Cliente"].dropna().unique().tolist()
+    cliente = st.selectbox("Cliente (ID)", sorted(clientes_disponibles))
+    tipo = st.text_input("Tipo de prenda")
     talla = st.text_input("Talla")
-    marca = st.text_input("Marca")
-    caracteristicas = st.text_area("Características (color, estampado, material...)")
-    precio = st.number_input("Precio estimado (€)", min_value=0.0, step=1.0)
+    precio = st.number_input("Precio (€)", min_value=0.0, step=0.5)
+    origen = st.selectbox("¿Donación o devolución?", ["Donación", "Devolución"])
+    lujo = st.checkbox("¿Es de lujo?")
+    porcentaje = st.slider("Porcentaje beneficio para el cliente", 0, 100, 30)
 
-    if st.button("📥 Añadir al inventario"):
-        try:
-            df_prendas = pd.read_csv("prendas.csv")
-        except FileNotFoundError:
-            columnas = [
-                "ID Prenda", "Nº Cliente (Formato C-xxx)", "Tipo de prenda", "Talla",
-                "Marca", "Caracteristicas (Color, estampado, material...)", "Precio",
-                "Fecha de recepción", "Vendida", "Fecha Vendida", "Fecha Aviso"
-            ]
-            df_prendas = pd.DataFrame(columns=columnas)
+    if st.button("Guardar Prenda"):
+        if not cliente or not tipo or not talla:
+            st.warning("Completa todos los campos necesarios.")
+        else:
+            existentes = df_prendas["ID Prenda"].dropna().tolist()
+            i = 1
+            while f"P-{i:03}" in existentes:
+                i += 1
+            nuevo_id = f"P-{i:03}"
 
-        nuevo_id = f"P-{len(df_prendas) + 1:03d}"
-        nueva_prenda = {
-            "ID Prenda": nuevo_id,
-            "Nº Cliente (Formato C-xxx)": id_cliente,
-            "Tipo de prenda": tipo,
-            "Talla": talla,
-            "Marca": marca,
-            "Caracteristicas (Color, estampado, material...)": caracteristicas,
-            "Precio": precio,
-            "Fecha de recepción": pd.Timestamp.today().strftime("%Y-%m-%d"),
-            "Vendida": "",
-            "Fecha Vendida": "",
-            "Fecha Aviso": ""
-        }
+            nueva_prenda = {
+                "ID Prenda": nuevo_id,
+                "Nº Cliente (Formato C-xxx)": cliente,
+                "Tipo de prenda": tipo,
+                "Talla": talla,
+                "Precio": precio,
+                "¿Donación o devolución?": origen,
+                "Fecha de recepción": date.today().isoformat(),
+                "¿Lujo?": "Sí" if lujo else "No",
+                "% Beneficio Cliente": porcentaje,
+                "Vendida": False,
+                "Fecha Vendida": "",
+                "Fecha Aviso": ""
+            }
 
-        df_prendas = pd.concat([df_prendas, pd.DataFrame([nueva_prenda])], ignore_index=True)
-        df_prendas.to_csv("prendas.csv", index=False)
-        st.success(f"✅ Prenda añadida correctamente con ID {nuevo_id}.")
+            df_prendas.loc[len(df_prendas)] = nueva_prenda
+            df_prendas.to_csv(RUTA_PRENDAS, index=False)
+            st.success(f"Prenda {nuevo_id} guardada.")
 elif seccion == "Marcar Vendida":
     st.header("✔️ Marcar Prenda como Vendida")
 
-    id_prenda = st.text_input("Introduce el código de la prenda (ID Prenda, ej: P-014)")
+    id_prenda = st.text_input("Introduce el código de la prenda (ej: P-014)")
 
     if st.button("✅ Marcar como vendida"):
-        try:
-            df_prendas = pd.read_csv("prendas.csv")
-        except FileNotFoundError:
-            st.error("❌ No se encontró el archivo local de prendas.")
-            st.stop()
-
         idx = df_prendas[df_prendas["ID Prenda"] == id_prenda].index
-
-        if len(idx) == 0:
+        if idx.empty:
             st.warning("⚠️ No se encontró ninguna prenda con ese código.")
         else:
-            df_prendas.loc[idx, "Vendida"] = "TRUE"
-            df_prendas.loc[idx, "Fecha Vendida"] = pd.Timestamp.today().strftime("%Y-%m-%d")
-            df_prendas.to_csv("prendas.csv", index=False)
+            df_prendas.loc[idx, "Vendida"] = True
+            df_prendas.loc[idx, "Fecha Vendida"] = date.today().isoformat()
+            df_prendas.to_csv(RUTA_PRENDAS, index=False)
             st.success(f"✅ Prenda {id_prenda} marcada como vendida.")
 
 elif seccion == "Consultar Stock":
