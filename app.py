@@ -640,6 +640,8 @@ elif seccion == "Gestión de Citas":
 
     df_citas = pd.read_csv(archivo_csv)
     df_citas["Fecha"] = pd.to_datetime(df_citas["Fecha"], errors="coerce").dt.date
+    df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str)
+    df_citas["Hora Fin"] = df_citas["Hora Fin"].astype(str)
 
     if "semana_inicio" not in st.session_state:
         hoy = date.today()
@@ -659,7 +661,7 @@ elif seccion == "Gestión de Citas":
             st.rerun()
 
     st.markdown(f"### 🗓️ Semana: {semana_inicio.strftime('%d/%m/%Y')} - {semana_fin.strftime('%d/%m/%Y')}")
-    st.markdown("### 📆 Disponibilidad Semanal")
+    st.markdown("### 📆 Calendario Semanal")
 
     intervalos = [(f"{h:02d}:00", f"{h:02d}:30") for h in range(10, 20)] + [(f"{h:02d}:30", f"{h+1:02d}:00") for h in range(10, 19)]
     intervalos = sorted(intervalos)
@@ -668,14 +670,16 @@ elif seccion == "Gestión de Citas":
 
     seleccionado = None
 
-    for inicio, fin in intervalos:
-        st.markdown(f"#### ⏰ {inicio} - {fin}")
-        cols = st.columns(7)
-        for i, dia in enumerate(dias_semana):
-            col = cols[i]
-            fecha_str = dia.strftime('%d/%m')
-            col.markdown(f"**{nombres_dias[i]}<br>{fecha_str}**", unsafe_allow_html=True)
+    # Cabecera del calendario
+    columnas = st.columns([1] + [1 for _ in range(7)])
+    columnas[0].markdown("**Hora**")
+    for i in range(7):
+        columnas[i + 1].markdown(f"**{nombres_dias[i]}<br>{dias_semana[i].strftime('%d/%m')}**", unsafe_allow_html=True)
 
+    for inicio, fin in intervalos:
+        columnas = st.columns([1] + [1 for _ in range(7)])
+        columnas[0].markdown(f"**{inicio} - {fin}**")
+        for i, dia in enumerate(dias_semana):
             ocupado = df_citas[
                 (df_citas["Fecha"] == dia) &
                 (((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) |
@@ -683,11 +687,11 @@ elif seccion == "Gestión de Citas":
             ]
             if ocupado.empty:
                 boton_key = f"{dia}_{inicio}_{fin}"
-                if col.button("Reservar", key=boton_key):
+                if columnas[i + 1].button("Reservar", key=boton_key):
                     seleccionado = (dia, inicio, fin)
             else:
                 nombre = ocupado.iloc[0]["Nombre"] if "Nombre" in ocupado.columns else "Ocupado"
-                col.markdown(f"<div style='color:red'><b>❌ {nombre}</b></div>", unsafe_allow_html=True)
+                columnas[i + 1].markdown(f"<span style='color:red; font-weight:bold;'>❌ {nombre}</span>", unsafe_allow_html=True)
 
     if seleccionado:
         dia, inicio, fin = seleccionado
