@@ -34,7 +34,7 @@ if not st.session_state.autenticado:
         if usuario_input == USUARIO and contrasena_input == CONTRASENA:
             st.session_state.autenticado = True
             st.success("✅ Acceso concedido")
-            st.experimental_rerun()
+            st.rerun()
         else:
             st.error("❌ Usuario o contraseña incorrectos")
     st.stop()
