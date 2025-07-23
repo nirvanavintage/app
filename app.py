@@ -627,6 +627,10 @@ elif seccion == "Avisos":
     else:
         st.info("No hay nuevos clientes registrados ese día.")
 elif seccion == "Gestión de Citas":
+    import os
+    import pandas as pd
+    from datetime import datetime, timedelta, date
+
     st.header("📅 Gestión de Citas")
 
     archivo_csv = "citas.csv"
@@ -636,6 +640,8 @@ elif seccion == "Gestión de Citas":
 
     df_citas = pd.read_csv(archivo_csv)
     df_citas["Fecha"] = pd.to_datetime(df_citas["Fecha"], errors="coerce").dt.date
+    df_citas["Hora Inicio"] = df_citas["Hora Inicio"].astype(str)
+    df_citas["Hora Fin"] = df_citas["Hora Fin"].astype(str)
 
     if "semana_inicio" not in st.session_state:
         hoy = date.today()
@@ -655,40 +661,68 @@ elif seccion == "Gestión de Citas":
             st.rerun()
 
     st.markdown(f"### 🗓️ Semana: {semana_inicio.strftime('%d/%m/%Y')} - {semana_fin.strftime('%d/%m/%Y')}")
+    st.markdown("### 📆 Disponibilidad Semanal")
 
     intervalos = [(f"{h:02d}:00", f"{h:02d}:30") for h in range(10, 20)] + [(f"{h:02d}:30", f"{h+1:02d}:00") for h in range(10, 19)]
     intervalos = sorted(intervalos)
     dias_semana = [semana_inicio + timedelta(days=i) for i in range(7)]
     nombres_dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
-    st.subheader("📆 Disponibilidad Semanal")
+    st.markdown("""
+        <style>
+        .tabla-citas {width:100%; border-collapse: collapse; font-size:14px;}
+        .tabla-citas th, .tabla-citas td {
+            border: 1px solid #444;
+            text-align: center;
+            padding: 6px;
+        }
+        .tabla-citas th {
+            background-color: #333;
+            color: white;
+        }
+        .libre { background-color: #1c512d; color: white; }
+        .ocupado { background-color: #551010; color: white; }
+        </style>
+    """, unsafe_allow_html=True)
 
+    botones = {}
     seleccionado = None
 
-    for inicio, fin in intervalos:
-        st.markdown(f"### ⏰ {inicio} - {fin}")
-        cols = st.columns(7)
-        for i, dia in enumerate(dias_semana):
-            col = cols[i]
-            fecha_str = dia.strftime('%d/%m')
-            col.markdown(f"**{nombres_dias[i]} ({fecha_str})**")
+    tabla = "<table class='tabla-citas'>"
+    tabla += "<tr><th>Hora</th>" + "".join(
+        [f"<th>{nombres_dias[i]}<br>{dias_semana[i].strftime('%d/%m')}</th>" for i in range(7)]
+    ) + "</tr>"
 
+    for inicio, fin in intervalos:
+        tabla += f"<tr><td><b>{inicio} - {fin}</b></td>"
+        for i, dia in enumerate(dias_semana):
             ocupado = df_citas[
                 (df_citas["Fecha"] == dia) &
                 (((df_citas["Hora Inicio"] <= inicio) & (df_citas["Hora Fin"] > inicio)) |
                  ((df_citas["Hora Inicio"] < fin) & (df_citas["Hora Fin"] >= fin)))
             ]
+            key = f"reservar_{dia}_{inicio}_{fin}".replace(":", "")
             if ocupado.empty:
-                boton_key = f"{dia}_{inicio}_{fin}"
-                if col.button("Reservar", key=boton_key):
-                    seleccionado = (dia, inicio, fin)
+                botones[key] = (dia, inicio, fin)
+                tabla += f"<td class='libre'>{key}</td>"
             else:
-                col.markdown("❌ Ocupado")
+                nombre = ocupado.iloc[0]["Nombre"] if "Nombre" in ocupado.columns else "Ocupado"
+                tabla += f"<td class='ocupado'>{nombre}</td>"
+        tabla += "</tr>"
+    tabla += "</table>"
+
+    st.markdown(tabla, unsafe_allow_html=True)
+
+    # Botones Streamlit ocultos fuera del HTML
+    for key, (dia, inicio, fin) in botones.items():
+        if st.button(f"Reservar {dia} {inicio}-{fin}", key=key):
+            seleccionado = (dia, inicio, fin)
 
     if seleccionado:
         dia, inicio, fin = seleccionado
         st.subheader("➕ Reservar nueva cita")
         st.info(f"Reservando para el **{dia.strftime('%A %d/%m/%Y')}**, de **{inicio} a {fin}**")
+
         nombre = st.text_input("👤 Nombre")
         telefono = st.text_input("📞 Teléfono")
         tipo_visita = st.selectbox("🔁 Tipo de visita", ["Entrega", "Devolución"])
