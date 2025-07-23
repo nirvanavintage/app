@@ -120,6 +120,11 @@ with col1:
         st.session_state.seccion = "Buscar Cliente"
     if st.button("📦 Consultar Stock"):
         st.session_state.seccion = "Consultar Stock"
+    if st.button("➕ Añadir Prenda"):
+        st.session_state.seccion = "Añadir Prenda"
+    if st.button("✔️ Marcar Vendida"):
+        st.session_state.seccion = "Marcar Vendida"
+
 
 with col2:
     if st.button("✅ Consultar Vendidos"):
@@ -213,6 +218,63 @@ if seccion == "Buscar Cliente":
                 pdf.output(buffer)
                 buffer.seek(0)
                 st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
+elif seccion == "Añadir Prenda":
+    st.header("➕ Añadir Nueva Prenda")
+
+    id_cliente = st.text_input("ID Cliente (formato C-xxx)")
+    tipo = st.selectbox("Tipo de prenda", ["Camiseta", "Pantalón", "Vestido", "Chaqueta", "Complemento", "Otro"])
+    talla = st.text_input("Talla")
+    marca = st.text_input("Marca")
+    caracteristicas = st.text_area("Características (color, estampado, material...)")
+    precio = st.number_input("Precio estimado (€)", min_value=0.0, step=1.0)
+
+    if st.button("📥 Añadir al inventario"):
+        nueva_prenda = {
+            "ID Prenda": "",  # Se generará si quieres luego
+            "Nº Cliente (Formato C-xxx)": id_cliente,
+            "Tipo de prenda": tipo,
+            "Talla": talla,
+            "Marca": marca,
+            "Caracteristicas (Color, estampado, material...)": caracteristicas,
+            "Precio": precio,
+            "Fecha de recepción": pd.Timestamp.today().strftime("%Y-%m-%d"),
+            "Vendida": "",
+            "Fecha Vendida": "",
+            "Fecha Aviso": ""
+        }
+
+        try:
+            hoja_prendas = pd.read_csv(URL_BASE + "Prendas")
+            nueva_fila = pd.DataFrame([nueva_prenda])
+            hoja_prendas = pd.concat([hoja_prendas, nueva_fila], ignore_index=True)
+
+            # Subida automática al Google Sheets (solo local si no usas API externa)
+            hoja_prendas.to_csv(f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet=Prendas", index=False)
+            st.success("✅ Prenda añadida correctamente.")
+        except:
+            st.error("❌ Error al guardar la prenda.")
+elif seccion == "Marcar Vendida":
+    st.header("✔️ Marcar Prenda como Vendida")
+
+    id_prenda = st.text_input("Introduce el código de la prenda (ID Prenda, ej: P-014)")
+
+    if st.button("✅ Marcar como vendida"):
+        try:
+            hoja_prendas = pd.read_csv(URL_BASE + "Prendas")
+            idx = hoja_prendas[hoja_prendas["ID Prenda"] == id_prenda].index
+
+            if len(idx) == 0:
+                st.warning("⚠️ No se encontró ninguna prenda con ese código.")
+            else:
+                hoja_prendas.loc[idx, "Vendida"] = "TRUE"
+                hoja_prendas.loc[idx, "Fecha Vendida"] = pd.Timestamp.today().strftime("%Y-%m-%d")
+
+                # Igual que antes: esto solo funcionará local si no usas API gspread
+                hoja_prendas.to_csv(f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&sheet=Prendas", index=False)
+                st.success(f"✅ Prenda {id_prenda} marcada como vendida.")
+        except:
+            st.error("❌ No se pudo actualizar la prenda.")
+
 elif seccion == "Consultar Stock":
     st.header("📦 Prendas en Stock")
 
