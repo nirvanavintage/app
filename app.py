@@ -101,26 +101,31 @@ df_clientes = pd.read_csv(archivo_clientes)
 if "seccion" not in st.session_state:
     st.session_state.seccion = ""
 
-st.markdown("## 📂 Selecciona una sección")
 col1, col2, col3 = st.columns([1, 1, 1])
 
+col1, col2, col3 = st.columns(3)
+
 with col1:
-    if st.button("🔍 Añadir Cliente"):
-        st.session_state.seccion = "Añadir Cliente"
-    if st.button("📦 Consultar Stock"):
-        st.session_state.seccion = "Consultar Stock"
+    st.markdown("#### 🛠️ Gestión")
     if st.button("➕ Añadir Prenda"):
         st.session_state.seccion = "Añadir Prenda"
+    if st.button("🔍 Añadir Cliente"):
+        st.session_state.seccion = "Añadir Cliente"
     if st.button("✔️ Marcar Vendida"):
         st.session_state.seccion = "Marcar Vendida"
 
+
 with col2:
+    st.markdown("#### 📦 Consultas")
+    if st.button("📦 Consultar Stock"):
+        st.session_state.seccion = "Consultar Stock"
     if st.button("✅ Consultar Vendidos"):
         st.session_state.seccion = "Consultar Vendidos"
     if st.button("🏷️ Generador de Etiquetas"):
         st.session_state.seccion = "Generador de Etiquetas"
 
 with col3:
+    st.markdown("#### 📊 Reportes")
     if st.button("📑 Reporte Diario"):
         st.session_state.seccion = "Reporte Diario"
     if st.button("📅 Gestión de Citas"):
