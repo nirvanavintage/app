@@ -14,6 +14,34 @@ from datetime import datetime
 RUTA_CLIENTES = "clientes.csv"
 RUTA_PRENDAS = "prendas.csv"
 
+# --- Generador de Etiquetas ---
+from fpdf import FPDF
+
+class EtiquetaPDF(FPDF):
+    def __init__(self):
+        super().__init__(orientation='L', unit='mm', format='A4')
+        self.set_auto_page_break(auto=False)
+        self.etiquetas_en_pagina = 0
+
+    def add_etiqueta(self, precio, talla, cliente, prenda_id):
+        if self.etiquetas_en_pagina % 2 == 0:
+            self.add_page()
+            y = 10
+        else:
+            y = 110  # mitad inferior
+
+        self.set_xy(0, y)
+        self.set_font("Arial", 'B', 24)
+        self.cell(297, 15, f"EUR {precio}", ln=True, align="C")
+
+        self.set_font("Arial", '', 20)
+        self.cell(297, 12, f"Talla {talla}", ln=True, align="C")
+        self.cell(297, 10, f"Cliente: {cliente}", ln=True, align="C")
+        self.cell(297, 10, f"Prenda: {prenda_id}", ln=True, align="C")
+
+        self.etiquetas_en_pagina += 1
+
+
 COLUMNAS_CLIENTES = [
     "ID Cliente", "Nombre y Apellidos", "Teléfono", "Fecha de Alta", "Número Formulario"
 ]
@@ -387,32 +415,6 @@ elif seccion == "Consultar Vendidos":
 
         buffer.seek(0)
         st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name="vendidos_filtrado.pdf")
-# --- Generador de Etiquetas ---
-from fpdf import FPDF
-
-class EtiquetaPDF(FPDF):
-    def __init__(self):
-        super().__init__(orientation='L', unit='mm', format='A4')
-        self.set_auto_page_break(auto=False)
-        self.etiquetas_en_pagina = 0
-
-    def add_etiqueta(self, precio, talla, cliente, prenda_id):
-        if self.etiquetas_en_pagina % 2 == 0:
-            self.add_page()
-            y = 10
-        else:
-            y = 110  # mitad inferior
-
-        self.set_xy(0, y)
-        self.set_font("Arial", 'B', 24)
-        self.cell(297, 15, f"EUR {precio}", ln=True, align="C")
-
-        self.set_font("Arial", '', 20)
-        self.cell(297, 12, f"Talla {talla}", ln=True, align="C")
-        self.cell(297, 10, f"Cliente: {cliente}", ln=True, align="C")
-        self.cell(297, 10, f"Prenda: {prenda_id}", ln=True, align="C")
-
-        self.etiquetas_en_pagina += 1
 
 elif seccion == "Generador de Etiquetas":
     st.markdown("### 🏷️ Generador de Etiquetas")
