@@ -21,26 +21,23 @@ class EtiquetaPDF(FPDF):
     def __init__(self):
         super().__init__(orientation='L', unit='mm', format='A4')
         self.set_auto_page_break(auto=False)
-        self.etiquetas_en_pagina = 0
 
-    def add_etiqueta(self, precio, talla, cliente, prenda_id):
-        if self.etiquetas_en_pagina % 2 == 0:
-            self.add_page()
-            y = 10
-        else:
-            y = 110  # mitad inferior
+    def add_etiqueta_grande(self, precio, talla, cliente, prenda_id):
+        self.add_page()
+        self.set_xy(0, 50)
 
-        self.set_xy(0, y)
-        self.set_font("Arial", 'B', 24)
-        self.cell(297, 15, f"EUR {precio}", ln=True, align="C")
+        # Precio grande
+        self.set_font("Arial", 'B', 48)
+        self.cell(297, 25, f"EUR {precio}", ln=True, align="C")
 
-        self.set_font("Arial", '', 20)
-        self.cell(297, 12, f"Talla {talla}", ln=True, align="C")
-        self.cell(297, 10, f"Cliente: {cliente}", ln=True, align="C")
-        self.cell(297, 10, f"Prenda: {prenda_id}", ln=True, align="C")
+        # Talla
+        self.set_font("Arial", 'B', 36)
+        self.cell(297, 20, f"Talla {talla}", ln=True, align="C")
 
-        self.etiquetas_en_pagina += 1
-
+        # Cliente y Prenda
+        self.set_font("Arial", '', 24)
+        self.cell(297, 15, f"Cliente: {cliente}", ln=True, align="C")
+        self.cell(297, 15, f"Prenda: {prenda_id}", ln=True, align="C")
 
 COLUMNAS_CLIENTES = [
     "ID Cliente", "Nombre y Apellidos", "Teléfono", "Fecha de Alta", "Número Formulario"
@@ -432,7 +429,7 @@ elif seccion == "Generador de Etiquetas":
     cod = st.selectbox("Selecciona una prenda (formato P-XXX)", sorted(codigos_disponibles))
 
     st.markdown("#### 🔹 Generar una sola etiqueta")
-    if cod and st.button("Generar etiqueta única"):
+        if cod and st.button("Generar etiqueta única"):
         prenda = df_prendas[df_prendas["ID Prenda"] == cod]
         if not prenda.empty:
             st.dataframe(prenda)
@@ -444,7 +441,7 @@ elif seccion == "Generador de Etiquetas":
             prenda_id = row.get("ID Prenda", "")
 
             pdf = EtiquetaPDF()
-            pdf.add_etiqueta(precio, talla, cliente, prenda_id)
+            pdf.add_etiqueta_grande(precio, talla, cliente, prenda_id)
 
             buffer = BytesIO()
             pdf_output = pdf.output(dest='S').encode('latin-1')
