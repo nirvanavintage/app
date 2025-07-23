@@ -429,7 +429,7 @@ elif seccion == "Generador de Etiquetas":
     cod = st.selectbox("Selecciona una prenda (formato P-XXX)", sorted(codigos_disponibles))
 
     st.markdown("#### 🔹 Generar una sola etiqueta")
-        if cod and st.button("Generar etiqueta única"):
+    if cod and st.button("Generar etiqueta única"):
         prenda = df_prendas[df_prendas["ID Prenda"] == cod]
         if not prenda.empty:
             st.dataframe(prenda)
