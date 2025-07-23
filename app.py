@@ -54,60 +54,6 @@ df_prendas = pd.read_csv("prendas.csv")
 hoy = datetime.today().date()
 dias_semana = [hoy - timedelta(days=i) for i in range(7)]
 
-# --- Generar 50 clientes ---
-num_clientes_actuales = len(df_clientes)
-nuevos_clientes = []
-for i in range(50):
-    idx = num_clientes_actuales + i + 1
-    id_cliente = f"C-{idx:03d}"
-    nuevos_clientes.append({
-        "ID Cliente": id_cliente,
-        "Nombre y Apellidos": f"Cliente Prueba {idx}",
-        "Teléfono": f"600{random.randint(100000,999999)}",
-        "Email": f"cliente{idx}@mail.com",
-        "Fecha de Alta": random.choice(dias_semana)
-    })
-df_clientes = pd.concat([df_clientes, pd.DataFrame(nuevos_clientes)], ignore_index=True)
-df_clientes.to_csv("clientes.csv", index=False)
-
-# --- Generar 200 prendas ---
-tipos = ["Camiseta", "Pantalón", "Vestido", "Chaqueta", "Falda"]
-tallas = ["S", "M", "L", "XL"]
-marcas = ["Zara", "H&M", "Nike", "Adidas", "Sin marca"]
-
-ids_existentes = set(df_prendas["ID Prenda"].astype(str))
-
-nuevas_prendas = []
-for _ in range(200):
-    while True:
-        id_prenda = f"P-{random.randint(100000, 999999)}"
-        if id_prenda not in ids_existentes:
-            ids_existentes.add(id_prenda)
-            break
-
-    cliente_id = random.choice(df_clientes["ID Cliente"])
-    prenda = {
-        "ID Prenda": id_prenda,
-        "Nº Cliente (Formato C-xxx)": cliente_id,
-        "Fecha de recepción": random.choice(dias_semana),
-        "Tipo de prenda": random.choice(tipos),
-        "Talla": random.choice(tallas),
-        "Marca": random.choice(marcas),
-        "Caracteristicas (Color, estampado, material...)": random.choice(["Roja", "Negra", "Estampada", "Lisa", "Vaquera"]),
-        "Precio": round(random.uniform(5, 50), 2),
-        "¿Donación o devolución?": random.choice(["Donación", "Devolución"]),
-        "¿Prenda de lujo?": random.choice(["Sí", "No"]),
-        "Fecha Venta Estimada": random.choice(dias_semana),
-        "Fecha Vendida": "",  # vacío al principio
-        "% Cliente": random.choice([20, 30, 40]),
-        "Vendida": False
-    }
-    nuevas_prendas.append(prenda)
-
-df_prendas = pd.concat([df_prendas, pd.DataFrame(nuevas_prendas)], ignore_index=True)
-df_prendas.to_csv("prendas.csv", index=False)
-
-
 def texto_fpdf(texto):
     if not isinstance(texto, str):
         texto = str(texto)
@@ -278,6 +224,45 @@ if seccion == "Buscar Cliente":
                 pdf.output(buffer)
                 buffer.seek(0)
                 st.download_button("⬇️ Descargar PDF Informe", buffer.getvalue(), file_name=f"informe_cliente_{id_cliente}.pdf")
+elif seccion == "Añadir Cliente":
+    st.header("➕ Añadir Cliente")
+
+    nombre = st.text_input("Nombre y Apellidos")
+    telefono = st.text_input("Teléfono")
+    dni = st.text_input("DNI")
+    num_formulario = st.number_input("Nº de Formulario", step=1, min_value=1)
+
+    if st.button("📝 Guardar Cliente"):
+        if nombre and telefono and dni:
+            # Cargar o crear archivo
+            try:
+                clientes_df = pd.read_csv("Clientes.csv")
+            except FileNotFoundError:
+                clientes_df = pd.DataFrame(columns=["Marca temporal", "ID Cliente", "Nombre y Apellidos", "Teléfono", "Fecha de Alta", "DNI", "Nº de Formulario"])
+
+            # Generar ID único
+            ids_existentes = clientes_df["ID Cliente"].tolist()
+            nuevo_id = 1
+            while f"C-{str(nuevo_id).zfill(3)}" in ids_existentes:
+                nuevo_id += 1
+            id_cliente = f"C-{str(nuevo_id).zfill(3)}"
+
+            nuevo_cliente = {
+                "Marca temporal": pd.Timestamp.now(),
+                "ID Cliente": id_cliente,
+                "Nombre y Apellidos": nombre,
+                "Teléfono": telefono,
+                "Fecha de Alta": pd.Timestamp.today().date(),
+                "DNI": dni,
+                "Nº de Formulario": num_formulario
+            }
+
+            clientes_df = pd.concat([clientes_df, pd.DataFrame([nuevo_cliente])], ignore_index=True)
+            clientes_df.to_csv("Clientes.csv", index=False)
+            st.success(f"✅ Cliente {id_cliente} guardado correctamente.")
+        else:
+            st.warning("❗ Rellena todos los campos obligatorios.")
+
 elif seccion == "Añadir Prenda":
     st.header("➕ Añadir Nueva Prenda")
 
