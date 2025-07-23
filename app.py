@@ -299,7 +299,9 @@ elif seccion == "Consultar Stock":
             pdf.ln()
 
         buffer = BytesIO()
-        pdf.output(buffer)
+        pdf_output = pdf.output(dest='S').encode('latin-1')
+        buffer.write(pdf_output)
+
         buffer.seek(0)
         st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name="stock_filtrado.pdf")
 
@@ -383,7 +385,9 @@ elif seccion == "Consultar Vendidos":
             pdf.ln()
 
         buffer = BytesIO()
-        pdf.output(buffer)
+        pdf_output = pdf.output(dest='S').encode('latin-1')
+        buffer.write(pdf_output)
+
         buffer.seek(0)
         st.download_button("⬇️ Descargar PDF", buffer.getvalue(), file_name="vendidos_filtrado.pdf")
 # --- Generador de Etiquetas ---
@@ -429,7 +433,9 @@ elif seccion == "Generador de Etiquetas":
             pdf.cell(105, 8, f"Prenda: {prenda_id}", ln=2, align='C')
 
             buffer = BytesIO()
-            pdf.output(buffer)
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            buffer.write(pdf_output)
+
             buffer.seek(0)
             st.download_button(
                 "⬇️ Descargar Etiqueta",
@@ -465,7 +471,9 @@ elif seccion == "Generador de Etiquetas":
                 pdf.cell(105, 8, f"Prenda: {prenda_id}", ln=2, align='C')
 
             buffer = BytesIO()
-            pdf.output(buffer)
+            pdf_output = pdf.output(dest='S').encode('latin-1')
+            buffer.write(pdf_output)
+
             buffer.seek(0)
             st.download_button(
                 "⬇️ Descargar Etiquetas Vendidas Hoy",
@@ -596,7 +604,9 @@ elif seccion == "Reporte Diario":
             pdf.cell(0, 6, "No hay nuevos clientes registrados ese día.", ln=True)
 
         buffer = BytesIO()
-        pdf.output(buffer)
+        pdf_output = pdf.output(dest='S').encode('latin-1')
+        buffer.write(pdf_output)
+
         buffer.seek(0)
         st.download_button("⬇ Descargar PDF", buffer.getvalue(), file_name=f"reporte_diario_{hoy.date()}.pdf")
 elif seccion == "Avisos":
