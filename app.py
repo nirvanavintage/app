@@ -132,7 +132,6 @@ if "seccion" not in st.session_state:
 with st.sidebar:
     st.markdown("## 📋 Menú Principal")
     opcion = option_menu(
-        menu_title="Navegación",
         options=[
             "Añadir Cliente", "Añadir Prenda", "Marcar Vendida",
             "Consultar Stock", "Consultar Vendidos", "Generador de Etiquetas",
