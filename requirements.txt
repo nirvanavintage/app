@@ -9,3 +9,4 @@ wkhtmltopdf
 fpdf2
 xlsxwriter
 gspread-pandas
+streamlit-option-menu
