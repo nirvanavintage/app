@@ -8,34 +8,104 @@ import unicodedata
 import base64
 import tempfile  
 
-# Comprobar y crear archivos si no existen
-PRIMERO_CSV = "clientes.csv"
-PRENDAS_CSV = "prendas.csv"
+import pandas as pd
+import os
+from datetime import datetime
 
-columnas_clientes = [
-    "ID Cliente", "Nombre y Apellidos", "Teléfono", "Email", 
-    "Dirección", "Fecha de Alta"
-]
+# Crear clientes.csv con columnas adecuadas si no existe
+if not os.path.exists("clientes.csv"):
+    df_clientes = pd.DataFrame(columns=[
+        "ID Cliente",
+        "Nombre y Apellidos",
+        "Teléfono",
+        "Email",
+        "Fecha de Alta"
+    ])
+    df_clientes.to_csv("clientes.csv", index=False)
 
-columnas_prendas = [
-    "ID Prenda", "Nº Cliente (Formato C-xxx)", "Tipo de prenda", "Talla", "Marca", 
-    "Caracteristicas (Color, estampado, material...)", "Precio", "Fecha de recepción",
-    "Vendida", "Fecha Vendida", "¿Donación o devolución?", "Fecha Aviso"
-]
+# Crear prendas.csv con columnas adecuadas si no existe
+if not os.path.exists("prendas.csv"):
+    df_prendas = pd.DataFrame(columns=[
+        "ID Prenda",
+        "Nº Cliente (Formato C-xxx)",
+        "Fecha de recepción",
+        "Tipo de prenda",
+        "Talla",
+        "Marca",
+        "Caracteristicas (Color, estampado, material...)",
+        "Precio",
+        "¿Donación o devolución?",
+        "¿Prenda de lujo?",
+        "Fecha Venta Estimada",
+        "Fecha Vendida",
+        "% Cliente",
+        "Vendida"
+    ])
+    df_prendas.to_csv("prendas.csv", index=False)
 
-# Crear archivo de clientes si no existe
-if not os.path.exists(PRIMERO_CSV):
-    df_vacio_clientes = pd.DataFrame(columns=columnas_clientes)
-    df_vacio_clientes.to_csv(PRIMERO_CSV, index=False)
+import random
+from datetime import timedelta
 
-# Crear archivo de prendas si no existe
-if not os.path.exists(PRENDAS_CSV):
-    df_vacio_prendas = pd.DataFrame(columns=columnas_prendas)
-    df_vacio_prendas.to_csv(PRENDAS_CSV, index=False)
+# Cargar archivos existentes
+df_clientes = pd.read_csv("clientes.csv")
+df_prendas = pd.read_csv("prendas.csv")
 
-# Cargar los archivos
-df_clientes = pd.read_csv(PRIMERO_CSV)
-df_prendas = pd.read_csv(PRENDAS_CSV)
+# Fechas de esta semana
+hoy = datetime.today().date()
+dias_semana = [hoy - timedelta(days=i) for i in range(7)]
+
+# --- Generar 50 clientes ---
+num_clientes_actuales = len(df_clientes)
+nuevos_clientes = []
+for i in range(50):
+    idx = num_clientes_actuales + i + 1
+    id_cliente = f"C-{idx:03d}"
+    nuevos_clientes.append({
+        "ID Cliente": id_cliente,
+        "Nombre y Apellidos": f"Cliente Prueba {idx}",
+        "Teléfono": f"600{random.randint(100000,999999)}",
+        "Email": f"cliente{idx}@mail.com",
+        "Fecha de Alta": random.choice(dias_semana)
+    })
+df_clientes = pd.concat([df_clientes, pd.DataFrame(nuevos_clientes)], ignore_index=True)
+df_clientes.to_csv("clientes.csv", index=False)
+
+# --- Generar 200 prendas ---
+tipos = ["Camiseta", "Pantalón", "Vestido", "Chaqueta", "Falda"]
+tallas = ["S", "M", "L", "XL"]
+marcas = ["Zara", "H&M", "Nike", "Adidas", "Sin marca"]
+
+ids_existentes = set(df_prendas["ID Prenda"].astype(str))
+
+nuevas_prendas = []
+for _ in range(200):
+    while True:
+        id_prenda = f"P-{random.randint(100000, 999999)}"
+        if id_prenda not in ids_existentes:
+            ids_existentes.add(id_prenda)
+            break
+
+    cliente_id = random.choice(df_clientes["ID Cliente"])
+    prenda = {
+        "ID Prenda": id_prenda,
+        "Nº Cliente (Formato C-xxx)": cliente_id,
+        "Fecha de recepción": random.choice(dias_semana),
+        "Tipo de prenda": random.choice(tipos),
+        "Talla": random.choice(tallas),
+        "Marca": random.choice(marcas),
+        "Caracteristicas (Color, estampado, material...)": random.choice(["Roja", "Negra", "Estampada", "Lisa", "Vaquera"]),
+        "Precio": round(random.uniform(5, 50), 2),
+        "¿Donación o devolución?": random.choice(["Donación", "Devolución"]),
+        "¿Prenda de lujo?": random.choice(["Sí", "No"]),
+        "Fecha Venta Estimada": random.choice(dias_semana),
+        "Fecha Vendida": "",  # vacío al principio
+        "% Cliente": random.choice([20, 30, 40]),
+        "Vendida": False
+    }
+    nuevas_prendas.append(prenda)
+
+df_prendas = pd.concat([df_prendas, pd.DataFrame(nuevas_prendas)], ignore_index=True)
+df_prendas.to_csv("prendas.csv", index=False)
 
 
 def texto_fpdf(texto):
