@@ -7,6 +7,7 @@ from fpdf import FPDF
 from io import BytesIO
 import unicodedata
 import base64
+from datetime import datetime, timedelta, date
 
 
 def texto_fpdf(texto):
