@@ -498,7 +498,7 @@ elif seccion == "Reporte Diario":
     total_neto = total_ganado - comision_clientes
 
     st.markdown(f"**💰 Total bruto (€):** {total_ganado:.2f}")
-    st.markdown(f"**👛 Comisión clientes (30%):** {comision_clientes:.2f}")
+    st.markdown(f"**👛 Comisión clientes :** {comision_clientes:.2f}")
     st.markdown(f"**📈 Total neto (€):** {total_neto:.2f}")
 
     # --- Nuevos clientes del día ---
