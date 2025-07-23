@@ -8,6 +8,36 @@ import unicodedata
 import base64
 import tempfile  
 
+# Comprobar y crear archivos si no existen
+PRIMERO_CSV = "clientes.csv"
+PRENDAS_CSV = "prendas.csv"
+
+columnas_clientes = [
+    "ID Cliente", "Nombre y Apellidos", "Teléfono", "Email", 
+    "Dirección", "Fecha de Alta"
+]
+
+columnas_prendas = [
+    "ID Prenda", "Nº Cliente (Formato C-xxx)", "Tipo de prenda", "Talla", "Marca", 
+    "Caracteristicas (Color, estampado, material...)", "Precio", "Fecha de recepción",
+    "Vendida", "Fecha Vendida", "¿Donación o devolución?", "Fecha Aviso"
+]
+
+# Crear archivo de clientes si no existe
+if not os.path.exists(PRIMERO_CSV):
+    df_vacio_clientes = pd.DataFrame(columns=columnas_clientes)
+    df_vacio_clientes.to_csv(PRIMERO_CSV, index=False)
+
+# Crear archivo de prendas si no existe
+if not os.path.exists(PRENDAS_CSV):
+    df_vacio_prendas = pd.DataFrame(columns=columnas_prendas)
+    df_vacio_prendas.to_csv(PRENDAS_CSV, index=False)
+
+# Cargar los archivos
+df_clientes = pd.read_csv(PRIMERO_CSV)
+df_prendas = pd.read_csv(PRENDAS_CSV)
+
+
 def texto_fpdf(texto):
     if not isinstance(texto, str):
         texto = str(texto)
